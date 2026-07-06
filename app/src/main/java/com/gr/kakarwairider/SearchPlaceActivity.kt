@@ -24,51 +24,65 @@ class SearchPlaceActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // ✅ Current Location receive karein
-        val currentLocation = intent.getParcelableExtra<LatLng>("current_location")
-
         try {
-            // 1️⃣ Places SDK Initialize करें (New API के साथ)
+            // 1️⃣ Places SDK Initialize (New API)
             if (!Places.isInitialized()) {
                 Places.initializeWithNewPlacesApiEnabled(
                     applicationContext,
                     getString(R.string.google_maps_key)
                 )
-                Log.d(TAG, "Places SDK initialized successfully with New Places API")
+                Log.d(TAG, "Places SDK initialized successfully")
             }
 
-            // 2️⃣ Autocomplete Intent बनाएँ
+            // 2️⃣ Current Location receive karein
+            val currentLocation = intent.getParcelableExtra<LatLng>("current_location")
+
+            // 3️⃣ Autocomplete Intent Builder
             val fields = listOf(
                 Place.Field.ID,
                 Place.Field.NAME,
                 Place.Field.ADDRESS,
                 Place.Field.LAT_LNG,
-                Place.Field.TYPES
+                Place.Field.TYPES,
+                Place.Field.RATING,           // ✅ Rating bhi dikhega
+                Place.Field.USER_RATING_COUNT // ✅ Reviews count
             )
 
-            val intent = Autocomplete.IntentBuilder(
+            val intentBuilder = Autocomplete.IntentBuilder(
                 AutocompleteActivityMode.OVERLAY,
                 fields
             )
-                .setTypeFilter(TypeFilter.ADDRESS)  // सिर्फ Address दिखाएँ
-                .setCountries(listOf("IN"))  // ✅ Fix: List में Pass करें
-                .apply {
-                    // ✅ Agar current location available hai toh bias set karein
-                    currentLocation?.let {
-                        val bounds = RectangularBounds.newInstance(
-                            LatLng(it.latitude - 0.05, it.longitude - 0.05),
-                            LatLng(it.latitude + 0.05, it.longitude + 0.05)
-                        )
-                        setLocationBias(bounds)
-                    }
-                }
-                .build(this)
+                .setCountries(listOf("IN"))
+            // 🎯 TypeFilter HATAYA - Saare places dikhenge
+            // .setTypeFilter(TypeFilter.ADDRESS)  // ❌ Ye hatao
 
-            // 3️⃣ Autocomplete Activity Launch करें
+            // 4️⃣ 🎯 LOCATION BIAS - Nearby places ko priority, par sab dikhein
+            if (currentLocation != null) {
+                val latOffset = 0.45
+                val lngOffset = 0.45
+
+                val southwest = LatLng(
+                    currentLocation.latitude - latOffset,
+                    currentLocation.longitude - lngOffset
+                )
+                val northeast = LatLng(
+                    currentLocation.latitude + latOffset,
+                    currentLocation.longitude + lngOffset
+                )
+
+                val bounds = RectangularBounds.newInstance(southwest, northeast)
+                // ✅ BIAS - nearby ko priority, par bahar ke bhi dikhein
+                intentBuilder.setLocationBias(bounds)
+                Log.d(TAG, "Location bias applied: 50km radius from current location")
+            } else {
+                Log.d(TAG, "No current location available - search without bias")
+            }
+
+            val intent = intentBuilder.build(this)
             startActivityForResult(intent, AUTOCOMPLETE_REQUEST_CODE)
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing Places: ${e.message}", e)
+            Log.e(TAG, "Error: ${e.message}", e)
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             finish()
         }
@@ -85,7 +99,7 @@ class SearchPlaceActivity : AppCompatActivity() {
                         val latLng = place.latLng
                         val address = place.address ?: place.name
 
-                        Log.d(TAG, "Place selected: $address, LatLng: $latLng")
+                        Log.d(TAG, "Place selected: ${place.name}, Address: $address, Rating: ${place.rating}")
 
                         if (latLng != null) {
                             val resultIntent = Intent()
@@ -94,11 +108,11 @@ class SearchPlaceActivity : AppCompatActivity() {
                             setResult(RESULT_OK, resultIntent)
                             finish()
                         } else {
-                            Toast.makeText(this, "No location found for this place", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this, "No location found", Toast.LENGTH_SHORT).show()
                             finish()
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error getting place: ${e.message}", e)
+                        Log.e(TAG, "Error: ${e.message}", e)
                         Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                         finish()
                     }
