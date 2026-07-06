@@ -1,14 +1,104 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:gravity="center"
-    android:orientation="vertical">
+    android:padding="24dp"
+    android:background="@color/white">
 
-    <Button
-        android:id="@+id/btnBookRide"
+    <!-- App Logo / Title -->
+    <ImageView
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@drawable/ic_splash_logo"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Book Ride" />
+        android:text="🚗 Kakarwai Rider"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@color/primary"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Choose Your Login Type"
+        android:textSize="16sp"
+        android:textColor="@color/black"
+        android:layout_marginBottom="32dp" />
+
+    <!-- ============================================================ -->
+    <!-- 1️⃣ USER LOGIN BUTTON -->
+    <!-- ============================================================ -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnUserLogin"
+        style="@style/Widget.Material3.Button"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="👤 User Login"
+        android:textSize="18sp"
+        android:textAllCaps="false"
+        app:cornerRadius="12dp"
+        android:layout_marginBottom="12dp"
+        app:backgroundTint="@color/blue" />
+
+    <!-- ============================================================ -->
+    <!-- 2️⃣ DRIVER LOGIN BUTTON -->
+    <!-- ============================================================ -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnDriverLogin"
+        style="@style/Widget.Material3.Button"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🚗 Driver Login"
+        android:textSize="18sp"
+        android:textAllCaps="false"
+        app:cornerRadius="12dp"
+        android:layout_marginBottom="12dp"
+        app:backgroundTint="@color/green" />
+
+    <!-- ============================================================ -->
+    <!-- 3️⃣ VENDOR LOGIN BUTTON -->
+    <!-- ============================================================ -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnVendorLogin"
+        style="@style/Widget.Material3.Button"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🏪 Vendor Login"
+        android:textSize="18sp"
+        android:textAllCaps="false"
+        app:cornerRadius="12dp"
+        android:layout_marginBottom="12dp"
+        app:backgroundTint="@color/orange" />
+
+    <!-- ============================================================ -->
+    <!-- 4️⃣ ADMIN LOGIN BUTTON -->
+    <!-- ============================================================ -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnAdminLogin"
+        style="@style/Widget.Material3.Button"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="🔒 Admin Login"
+        android:textSize="18sp"
+        android:textAllCaps="false"
+        app:cornerRadius="12dp"
+        android:layout_marginBottom="16dp"
+        app:backgroundTint="@color/red" />
+
+    <!-- Footer -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="v1.0"
+        android:textSize="12sp"
+        android:textColor="#888888"
+        android:layout_marginTop="16dp" />
 
 </LinearLayout>
