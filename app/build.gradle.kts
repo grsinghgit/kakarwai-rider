@@ -100,7 +100,7 @@ dependencies {
     // ============================================================
     implementation(libs.glide)
     // Google Places (Autocomplete)
-    implementation("com.google.android.libraries.places:places:3.4.0")
+    implementation(libs.places)
 
     // ============================================================
     // 9. Testing
