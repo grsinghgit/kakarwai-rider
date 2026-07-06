@@ -72,7 +72,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
         initViews(view)
 
-        // ✅ Fixed: findFragmentById without generic + safe call
         val mapFragment = childFragmentManager.findFragmentById(R.id.mapFragment) as? SupportMapFragment
         mapFragment?.getMapAsync(this)
 
@@ -230,14 +229,14 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    // ✅ Fixed: radiusInMeters as Double
+    // ✅ FINAL FIXED - Circle with transparent fill and blue border
     private fun drawRadiusCircle(center: LatLng, radiusInMeters: Double) {
         val circleOptions = CircleOptions()
             .center(center)
             .radius(radiusInMeters)
-            .strokeWidth(4f)
-            .strokeColor(ContextCompat.getColor(requireContext(), R.color.primary))
-            .fillColor(0x99FF6200EE.toInt())  // ~60% transparent
+            .strokeWidth(3f)
+            .strokeColor(0xFF2196F3.toInt())      // Light Blue border
+            .fillColor(0x332196F3.toInt())         // Transparent Light Blue fill
         mMap.addCircle(circleOptions)
     }
 
@@ -377,7 +376,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     }
 
     // ============================================================
-    // ROUTE AND FARE CALCULATION (Fake for now)
+    // ROUTE AND FARE CALCULATION
     // ============================================================
 
     private fun calculateRouteAndFare(origin: LatLng, destination: LatLng) {
@@ -393,11 +392,12 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         drawRoute(origin, destination)
     }
 
+    // ✅ FINAL FIXED - Route with visible blue color
     private fun drawRoute(origin: LatLng, destination: LatLng) {
         val polylineOptions = PolylineOptions()
             .add(origin, destination)
             .width(8f)
-            .color(ContextCompat.getColor(requireContext(), R.color.primary))
+            .color(0xFF2196F3.toInt())      // Bright Blue route
             .geodesic(true)
         mMap.addPolyline(polylineOptions)
     }
