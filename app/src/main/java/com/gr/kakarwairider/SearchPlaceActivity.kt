@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
+import com.google.android.libraries.places.api.model.RectangularBounds
 import com.google.android.libraries.places.api.model.TypeFilter
 import com.google.android.libraries.places.widget.Autocomplete
 import com.google.android.libraries.places.widget.AutocompleteActivity
@@ -22,6 +23,9 @@ class SearchPlaceActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // ✅ Current Location receive karein
+        val currentLocation = intent.getParcelableExtra<LatLng>("current_location")
 
         try {
             // 1️⃣ Places SDK Initialize करें (New API के साथ)
@@ -48,6 +52,16 @@ class SearchPlaceActivity : AppCompatActivity() {
             )
                 .setTypeFilter(TypeFilter.ADDRESS)  // सिर्फ Address दिखाएँ
                 .setCountries(listOf("IN"))  // ✅ Fix: List में Pass करें
+                .apply {
+                    // ✅ Agar current location available hai toh bias set karein
+                    currentLocation?.let {
+                        val bounds = RectangularBounds.newInstance(
+                            LatLng(it.latitude - 0.05, it.longitude - 0.05),
+                            LatLng(it.latitude + 0.05, it.longitude + 0.05)
+                        )
+                        setLocationBias(bounds)
+                    }
+                }
                 .build(this)
 
             // 3️⃣ Autocomplete Activity Launch करें
