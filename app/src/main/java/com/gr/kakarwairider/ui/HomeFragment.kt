@@ -7,6 +7,9 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
+import com.google.android.material.button.MaterialButton
+import com.gr.kakarwairider.MainActivity
 import com.gr.kakarwairider.R
 import com.gr.kakarwairider.viewmodel.AuthViewModel
 
@@ -28,5 +31,12 @@ class HomeFragment : Fragment() {
         val tvUserInfo = view.findViewById<TextView>(R.id.tvFragmentTitle)
         val phoneNumber = authViewModel.getCurrentUserPhone()
         tvUserInfo.text = "👤 $phoneNumber"
+
+        view.findViewById<MaterialButton>(R.id.btnLogout).setOnClickListener {
+            authViewModel.logout()
+            (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
+            findNavController().navigate(R.id.action_home_to_login)
+        }
+
     }
 }

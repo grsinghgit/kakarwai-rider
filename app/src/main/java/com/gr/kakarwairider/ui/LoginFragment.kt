@@ -10,6 +10,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import com.gr.kakarwairider.MainActivity
 import com.gr.kakarwairider.R
 import com.gr.kakarwairider.viewmodel.AuthViewModel
 
@@ -92,7 +93,11 @@ class LoginFragment : Fragment() {
         authViewModel.otpVerified.observe(viewLifecycleOwner) { verified ->
             if (verified) {
                 Toast.makeText(requireContext(), "Login Successful! 🎉", Toast.LENGTH_LONG).show()
-                // ✅ Navigate to MainActivity2 (Rider Home)
+
+                // ✅ Update MainActivity UI
+                (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
+
+                // ✅ Navigate to Home
                 findNavController().navigate(R.id.action_login_to_home)
             }
         }

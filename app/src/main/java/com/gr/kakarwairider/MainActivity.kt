@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Bundle
 import android.provider.Settings
+import android.view.Menu
+import android.view.MenuItem
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -17,10 +19,12 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var navController: NavController
+    private lateinit var bottomNav: BottomNavigationView
     private var locationDialog: AlertDialog? = null
     private val PERMISSION_REQUEST_CODE = 100
 
@@ -28,38 +32,78 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // ✅ Set Toolbar as ActionBar
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
+        supportActionBar?.title = "Kakarwai Rider"
 
-        // ✅ Location Check - Mandatory
         checkLocationAndProceed()
 
-        // ✅ NavController Setup
+        bottomNav = findViewById(R.id.bottom_navigation)
+
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
         navController = navHostFragment.navController
-
-        val navView: BottomNavigationView = findViewById(R.id.bottom_navigation)
 
         val appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.homeFragment,
                 R.id.driverFragment,
                 R.id.vendorFragment,
-                R.id.adminFragment
+                R.id.adminFragment,
+                R.id.loginFragment
             )
         )
 
         setupActionBarWithNavController(navController, appBarConfiguration)
-        navView.setupWithNavController(navController)
-    }
+        bottomNav.setupWithNavController(navController)
 
-    override fun onSupportNavigateUp(): Boolean {
-        return navController.navigateUp() || super.onSupportNavigateUp()
+        updateUIBasedOnLoginStatus()
     }
 
     // ============================================================
-    // LOCATION CHECK (Mandatory)
+    // ✅ MENU
+    // ============================================================
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == R.id.action_logout) {
+            logout()
+            return true
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+    // ============================================================
+    // ✅ LOGOUT
+    // ============================================================
+
+    private fun logout() {
+        FirebaseAuth.getInstance().signOut()
+        updateUIBasedOnLoginStatus()
+        navController.navigate(R.id.action_home_to_login)
+    }
+
+    // ============================================================
+    // ✅ UPDATE UI BASED ON LOGIN STATUS
+    // ============================================================
+
+    fun updateUIBasedOnLoginStatus() {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+
+        if (currentUser != null) {
+            bottomNav.visibility = BottomNavigationView.VISIBLE
+            supportActionBar?.title = "👤 ${currentUser.phoneNumber}"
+        } else {
+            bottomNav.visibility = BottomNavigationView.GONE
+            supportActionBar?.title = "Kakarwai Rider"
+        }
+    }
+
+    // ============================================================
+    // ✅ LOCATION CHECK
     // ============================================================
 
     private fun checkLocationAndProceed() {
@@ -75,7 +119,6 @@ class MainActivity : AppCompatActivity() {
 
         if (!isLocationEnabled()) {
             showUncancelableLocationDialog()
-            return
         }
     }
 
@@ -146,5 +189,11 @@ class MainActivity : AppCompatActivity() {
         if (locationDialog?.isShowing == true && isLocationEnabled()) {
             dismissLocationDialog()
         }
+
+        updateUIBasedOnLoginStatus()
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        return navController.navigateUp() || super.onSupportNavigateUp()
     }
 }
