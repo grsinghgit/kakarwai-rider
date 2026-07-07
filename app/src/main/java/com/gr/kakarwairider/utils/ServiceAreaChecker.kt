@@ -19,7 +19,7 @@ class ServiceAreaChecker(private val context: Context) {
         LocationServices.getFusedLocationProviderClient(context)
 
     // ✅ Default Service Center (Delhi - Change karein)
-    private val SERVICE_CENTER = LatLng(28.6139, 77.2090)
+    private val SERVICE_CENTER = LatLng(25.6163, 79.1859)
     private val SERVICE_RADIUS = 50000.0 // 50km in meters
 
     // ✅ Interface
