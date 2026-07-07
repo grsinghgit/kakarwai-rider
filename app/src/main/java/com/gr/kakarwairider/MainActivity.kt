@@ -7,15 +7,20 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.android.material.button.MaterialButton
+import androidx.navigation.NavController
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.setupActionBarWithNavController
+import androidx.navigation.ui.setupWithNavController
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var navController: NavController
     private var locationDialog: AlertDialog? = null
     private val PERMISSION_REQUEST_CODE = 100
 
@@ -23,43 +28,34 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // ✅ Set Toolbar as ActionBar
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
         // ✅ Location Check - Mandatory
         checkLocationAndProceed()
 
-        // ✅ Login Buttons Setup
-        setupLoginButtons()
+        // ✅ NavController Setup
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+        navController = navHostFragment.navController
+
+        val navView: BottomNavigationView = findViewById(R.id.bottom_navigation)
+
+        val appBarConfiguration = AppBarConfiguration(
+            setOf(
+                R.id.homeFragment,
+                R.id.driverFragment,
+                R.id.vendorFragment,
+                R.id.adminFragment
+            )
+        )
+
+        setupActionBarWithNavController(navController, appBarConfiguration)
+        navView.setupWithNavController(navController)
     }
 
-    private fun setupLoginButtons() {
-        val btnUserLogin: MaterialButton = findViewById(R.id.btnUserLogin)
-        val btnDriverLogin: MaterialButton = findViewById(R.id.btnDriverLogin)
-        val btnVendorLogin: MaterialButton = findViewById(R.id.btnVendorLogin)
-        val btnAdminLogin: MaterialButton = findViewById(R.id.btnAdminLogin)
-
-        btnUserLogin.setOnClickListener {
-            val intent = Intent(this, MainActivity2::class.java)
-            startActivity(intent)
-            // TODO: Open User Login Fragment/Activity
-        }
-
-        btnDriverLogin.setOnClickListener {
-            showToast("Driver Login Clicked - Authentication coming soon")
-            // TODO: Open Driver Login Fragment/Activity
-        }
-
-        btnVendorLogin.setOnClickListener {
-            showToast("Vendor Login Clicked - Authentication coming soon")
-            // TODO: Open Vendor Login Fragment/Activity
-        }
-
-        btnAdminLogin.setOnClickListener {
-            showToast("Admin Login Clicked - Authentication coming soon")
-            // TODO: Open Admin Login Fragment/Activity
-        }
-    }
-
-    private fun showToast(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    override fun onSupportNavigateUp(): Boolean {
+        return navController.navigateUp() || super.onSupportNavigateUp()
     }
 
     // ============================================================
@@ -81,8 +77,6 @@ class MainActivity : AppCompatActivity() {
             showUncancelableLocationDialog()
             return
         }
-
-        // ✅ Location is ON - No need to proceed automatically, user will click login
     }
 
     private fun isLocationEnabled(): Boolean {
