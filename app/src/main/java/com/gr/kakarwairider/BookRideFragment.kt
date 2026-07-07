@@ -30,7 +30,11 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import com.gr.kakarwairider.api.DistanceMatrixResponse
+import com.gr.kakarwairider.api.GoogleMapsApiService
 import com.gr.kakarwairider.viewmodel.BookRideViewModel
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
 import java.util.*
 
@@ -58,6 +62,10 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
     private val viewModel: BookRideViewModel by viewModels()
     private var locationDialog: AlertDialog? = null
+
+    // Per KM Rate
+    private val PER_KM_RATE = 12.0
+    private val BASE_FARE = 50.0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -118,6 +126,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
             val destination = etDestination.text.toString()
             if (pickup.isNotEmpty() && destination.isNotEmpty()) {
                 viewModel.bookRide(pickup, destination, "Mini")
+                Toast.makeText(requireContext(), "✅ Ride Booked!", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(requireContext(), "Please select pickup and destination", Toast.LENGTH_SHORT).show()
             }
@@ -229,14 +238,13 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    // ✅ FINAL FIXED - Circle with transparent fill and blue border
     private fun drawRadiusCircle(center: LatLng, radiusInMeters: Double) {
         val circleOptions = CircleOptions()
             .center(center)
             .radius(radiusInMeters)
             .strokeWidth(3f)
-            .strokeColor(0xFF2196F3.toInt())      // Light Blue border
-            .fillColor(0x332196F3.toInt())         // Transparent Light Blue fill
+            .strokeColor(0xFF2196F3.toInt())
+            .fillColor(0x332196F3.toInt())
         mMap.addCircle(circleOptions)
     }
 
@@ -376,28 +384,86 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     }
 
     // ============================================================
-    // ROUTE AND FARE CALCULATION
+    // REAL ROUTE AND FARE CALCULATION (Google Distance Matrix API)
     // ============================================================
 
     private fun calculateRouteAndFare(origin: LatLng, destination: LatLng) {
-        val distanceInKm = 10.5
-        val durationInMin = 25
-        val fare = distanceInKm * 12 + 50
+        // Show loading state
+        tvDistance.text = "Calculating..."
+        tvDuration.text = "Please wait..."
+        tvFare.text = "₹ ---"
+        btnBookNow.isEnabled = false
 
-        tvDistance.text = "Distance: %.1f km".format(distanceInKm)
-        tvDuration.text = "Time: %d min".format(durationInMin)
-        tvFare.text = "Fare: ₹ %.0f".format(fare)
-        btnBookNow.isEnabled = true
+        val apiKey = getString(R.string.google_maps_key)
+        val origins = "${origin.latitude},${origin.longitude}"
+        val destinations = "${destination.latitude},${destination.longitude}"
 
-        drawRoute(origin, destination)
+        // Create Retrofit instance
+        val retrofit = Retrofit.Builder()
+            .baseUrl("https://maps.googleapis.com/maps/api/")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        val apiService = retrofit.create(GoogleMapsApiService::class.java)
+
+        apiService.getDistanceMatrix(origins, destinations, apiKey)
+            .enqueue(object : retrofit2.Callback<DistanceMatrixResponse> {
+                override fun onResponse(
+                    call: retrofit2.Call<DistanceMatrixResponse>,
+                    response: retrofit2.Response<DistanceMatrixResponse>
+                ) {
+                    if (response.isSuccessful) {
+                        val data = response.body()
+                        if (data?.status == "OK") {
+                            val element = data.rows?.firstOrNull()?.elements?.firstOrNull()
+                            if (element?.status == "OK") {
+                                val distanceInMeters = element.distance?.value ?: 0
+                                val distanceInKm = distanceInMeters / 1000.0
+                                val durationInSeconds = element.duration?.value ?: 0
+                                val durationInMinutes = durationInSeconds / 60
+
+                                val fare = (distanceInKm * PER_KM_RATE) + BASE_FARE
+
+                                tvDistance.text = "Distance: %.1f km".format(distanceInKm)
+                                tvDuration.text = "Time: %d min".format(durationInMinutes)
+                                tvFare.text = "Fare: ₹ %.0f".format(fare)
+                                btnBookNow.isEnabled = true
+
+                                // Draw route on map
+                                drawRoute(origin, destination)
+                            } else {
+                                showCalculationError()
+                            }
+                        } else {
+                            showCalculationError()
+                        }
+                    } else {
+                        showCalculationError()
+                    }
+                }
+
+                override fun onFailure(
+                    call: retrofit2.Call<DistanceMatrixResponse>,
+                    t: Throwable
+                ) {
+                    showCalculationError()
+                    t.printStackTrace()
+                }
+            })
     }
 
-    // ✅ FINAL FIXED - Route with visible blue color
+    private fun showCalculationError() {
+        tvDistance.text = "⚠️ Failed to calculate"
+        tvDuration.text = "Please try again"
+        tvFare.text = "₹ ---"
+        Toast.makeText(requireContext(), "Failed to calculate distance. Please try again.", Toast.LENGTH_SHORT).show()
+    }
+
     private fun drawRoute(origin: LatLng, destination: LatLng) {
         val polylineOptions = PolylineOptions()
             .add(origin, destination)
             .width(8f)
-            .color(0xFF2196F3.toInt())      // Bright Blue route
+            .color(0xFF2196F3.toInt())
             .geodesic(true)
         mMap.addPolyline(polylineOptions)
     }
