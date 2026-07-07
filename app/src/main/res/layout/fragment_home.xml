@@ -10,7 +10,7 @@
         android:id="@+id/tvFragmentTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="🏠 User Login"
+        android:text="✅ Logged In"
         android:textSize="24sp"
         android:textStyle="bold"
         android:textColor="@color/primary" />
@@ -18,9 +18,9 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Authentication Coming Soon"
+        android:text="User Home Screen"
         android:textSize="16sp"
         android:textColor="@color/grey"
-        android:layout_marginTop="8dp" />  <!-- ✅ Fixed -->
+        android:layout_marginTop="8dp" />
 
 </LinearLayout>

@@ -6,18 +6,27 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.viewmodel.AuthViewModel
 
 class HomeFragment : Fragment() {
+
+    private val authViewModel: AuthViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        val view = inflater.inflate(R.layout.fragment_home, container, false)
-        val textView = view.findViewById<TextView>(R.id.tvFragmentTitle)
-        textView.text = "🏠 User Login"
-        return view
+        return inflater.inflate(R.layout.fragment_home, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val tvUserInfo = view.findViewById<TextView>(R.id.tvFragmentTitle)
+        val phoneNumber = authViewModel.getCurrentUserPhone()
+        tvUserInfo.text = "👤 $phoneNumber"
     }
 }

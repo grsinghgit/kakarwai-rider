@@ -2,7 +2,12 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/mobile_navigation_main"
-    app:startDestination="@id/homeFragment">
+    app:startDestination="@id/loginFragment">
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.gr.kakarwairider.ui.LoginFragment"
+        android:label="Login" />
 
     <fragment
         android:id="@+id/homeFragment"
@@ -23,5 +28,9 @@
         android:id="@+id/adminFragment"
         android:name="com.gr.kakarwairider.ui.AdminFragment"
         android:label="Admin" />
+
+    <action
+        android:id="@+id/action_login_to_home"
+        app:destination="@id/homeFragment" />
 
 </navigation>

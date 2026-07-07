@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    // 🆕 Google Services Plugin (Firebase के लिए)
+    // ✅ Google Services Plugin (Firebase)
     id("com.google.gms.google-services") version "4.4.2"
 }
 
@@ -76,8 +76,8 @@ dependencies {
     // 5. Firebase (BOM + Individual Libraries)
     // ============================================================
     implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth.ktx)
-    implementation(libs.firebase.firestore.ktx)
+    implementation(libs.firebase.auth.ktx)        // ✅ Phone Auth ke liye
+    implementation(libs.firebase.firestore.ktx)   // ✅ Database ke liye
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.messaging.ktx)
 
@@ -99,11 +99,14 @@ dependencies {
     // 8. Image Loading (Glide)
     // ============================================================
     implementation(libs.glide)
-    // Google Places (Autocomplete)
+
+    // ============================================================
+    // 9. Google Places (Autocomplete)
+    // ============================================================
     implementation(libs.places)
 
     // ============================================================
-    // 9. Testing
+    // 10. Testing
     // ============================================================
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
