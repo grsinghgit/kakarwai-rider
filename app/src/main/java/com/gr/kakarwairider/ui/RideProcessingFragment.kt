@@ -15,6 +15,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.gr.kakarwairider.HistoryFragment
 import com.gr.kakarwairider.R
 
 class RideProcessingFragment : Fragment() {
@@ -318,7 +319,11 @@ class RideProcessingFragment : Fragment() {
                 .addOnSuccessListener {
                     countDownTimer?.cancel()
                     Toast.makeText(requireContext(), "Ride Cancelled", Toast.LENGTH_SHORT).show()
-                    findNavController().popBackStack()
+
+                    // ✅ Safe Navigation - Activity se check karein
+                    activity?.supportFragmentManager?.beginTransaction()
+                        ?.replace(R.id.fragment_container, HistoryFragment())
+                        ?.commit()
                 }
                 .addOnFailureListener {
                     Toast.makeText(requireContext(), "Failed to cancel ride", Toast.LENGTH_SHORT).show()

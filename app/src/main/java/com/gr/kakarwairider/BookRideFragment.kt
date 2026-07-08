@@ -39,6 +39,7 @@ import com.gr.kakarwairider.adapter.VehicleSelectionAdapter
 import com.gr.kakarwairider.api.DistanceMatrixResponse
 import com.gr.kakarwairider.api.GoogleMapsApiService
 import com.gr.kakarwairider.model.VehicleOption
+import com.gr.kakarwairider.ui.RideProcessingFragment
 import com.gr.kakarwairider.viewmodel.BookRideViewModel
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -135,7 +136,11 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                     putString("vehicleIcon", ride.vehicleIcon)
                     putString("vehicleName", ride.vehicleName)
                 }
-                findNavController().navigate(R.id.action_ride_to_processing, bundle)
+                // ✅ Safe Navigation using activity
+                activity?.supportFragmentManager?.beginTransaction()
+                    ?.replace(R.id.fragment_container, RideProcessingFragment::class.java, bundle)
+                    ?.addToBackStack(null)
+                    ?.commit()
             }
         }
 

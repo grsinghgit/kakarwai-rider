@@ -10,7 +10,7 @@
         android:name="com.gr.kakarwairider.ui.LoginFragment"
         android:label="Login" />
 
-    <!-- Home (Book Ride) -->
+    <!-- Home -->
     <fragment
         android:id="@+id/homeFragment"
         android:name="com.gr.kakarwairider.ui.HomeFragment"
@@ -34,30 +34,6 @@
         android:name="com.gr.kakarwairider.ui.AdminFragment"
         android:label="Admin" />
 
-    <!-- History -->
-    <fragment
-        android:id="@+id/historyFragment"
-        android:name="com.gr.kakarwairider.HistoryFragment"
-        android:label="History" />
-
-    <!-- Profile -->
-    <fragment
-        android:id="@+id/profileFragment"
-        android:name="com.gr.kakarwairider.ProfileFragment"
-        android:label="Profile" />
-
-    <!-- Ride Processing -->
-    <fragment
-        android:id="@+id/rideProcessingFragment"
-        android:name="com.gr.kakarwairider.ui.RideProcessingFragment"
-        android:label="Processing Ride" />
-
-    <!-- Ride Tracking -->
-    <fragment
-        android:id="@+id/rideTrackingFragment"
-        android:name="com.gr.kakarwairider.ui.RideTrackingFragment"
-        android:label="Ride Tracking" />
-
     <!-- Actions -->
     <action
         android:id="@+id/action_login_to_home"
@@ -70,13 +46,5 @@
         app:destination="@id/loginFragment"
         app:popUpTo="@id/homeFragment"
         app:popUpToInclusive="true" />
-
-    <action
-        android:id="@+id/action_ride_to_processing"
-        app:destination="@id/rideProcessingFragment" />
-
-    <action
-        android:id="@+id/action_processing_to_tracking"
-        app:destination="@id/rideTrackingFragment" />
 
 </navigation>
