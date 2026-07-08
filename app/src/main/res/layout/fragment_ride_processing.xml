@@ -125,6 +125,87 @@
                     android:textStyle="bold"
                     android:textColor="@color/primary" />
 
+                <!-- Add these TextViews in your layout -->
+                <TextView
+                    android:id="@+id/tvDistance"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📍 0.0 km"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvDuration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="⏱️ 0 min"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/tvVehicle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🚗 Car"
+                    android:textSize="14sp" />
+
+                <ProgressBar
+                    android:id="@+id/progressBar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" />
+
+                <!-- Driver Details Card -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardDriverDetails"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp"
+                    android:visibility="gone"
+                    android:layout_marginTop="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:id="@+id/tvDriverName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🚗 Driver Name"
+                            android:textSize="16sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvDriverPhone"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📱 Phone"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvDriverVehicle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🚙 Vehicle"
+                            android:textSize="14sp" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Start Ride Button (Hidden initially) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnStartRide"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="🚗 Start Ride"
+                    app:cornerRadius="12dp"
+                    app:backgroundTint="@color/green"
+                    android:visibility="gone"
+                    android:layout_marginTop="8dp" />
+
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>

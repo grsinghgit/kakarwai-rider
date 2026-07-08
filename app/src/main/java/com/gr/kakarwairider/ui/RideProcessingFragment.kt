@@ -5,24 +5,20 @@ import android.os.CountDownTimer
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.R
-import com.gr.kakarwairider.model.RideModel
-import com.gr.kakarwairider.viewmodel.BookRideViewModel
-import java.text.SimpleDateFormat
-import java.util.*
-import java.util.Locale
 
 class RideProcessingFragment : Fragment() {
 
-    private val viewModel: BookRideViewModel by viewModels()
     private val db = FirebaseFirestore.getInstance()
 
     private lateinit var tvTimer: TextView
@@ -31,13 +27,22 @@ class RideProcessingFragment : Fragment() {
     private lateinit var tvPickup: TextView
     private lateinit var tvDestination: TextView
     private lateinit var tvFare: TextView
+    private lateinit var tvDistance: TextView
+    private lateinit var tvDuration: TextView
+    private lateinit var tvVehicle: TextView
+    private lateinit var progressBar: ProgressBar
     private lateinit var cardRideDetails: MaterialCardView
+    private lateinit var cardDriverDetails: MaterialCardView
     private lateinit var btnRefresh: MaterialButton
     private lateinit var btnCancel: MaterialButton
+    private lateinit var btnStartRide: MaterialButton
+    private lateinit var tvDriverName: TextView
+    private lateinit var tvDriverPhone: TextView
+    private lateinit var tvDriverVehicle: TextView
 
-    private var ride: RideModel? = null
+    private var rideId: String? = null
     private var countDownTimer: CountDownTimer? = null
-    private var timeLeft = 300000L // 5 minutes in milliseconds
+    private var isDriverAssigned = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -52,29 +57,19 @@ class RideProcessingFragment : Fragment() {
 
         initViews(view)
 
-        // ✅ Get ride from arguments
-        arguments?.let {
-            ride = it.getParcelable("ride")
-        }
+        // ✅ Get rideId from arguments
+        rideId = arguments?.getString("rideId")
 
-        ride?.let { rideData ->
-            displayRideDetails(rideData)
-            startTimer(rideData)
-            listenForRideUpdate(rideData.rideId)
-        } ?: run {
-            // No ride data - go back
+        if (rideId != null) {
+            displayRideDetails()
+            listenForRideUpdates()
+            startTimer()
+        } else {
+            Toast.makeText(requireContext(), "Ride not found", Toast.LENGTH_SHORT).show()
             findNavController().popBackStack()
         }
 
-        btnRefresh.setOnClickListener {
-            ride?.rideId?.let { rideId ->
-                checkRideStatus(rideId)
-            }
-        }
-
-        btnCancel.setOnClickListener {
-            cancelRide()
-        }
+        setupListeners()
     }
 
     private fun initViews(view: View) {
@@ -84,39 +79,173 @@ class RideProcessingFragment : Fragment() {
         tvPickup = view.findViewById(R.id.tvPickup)
         tvDestination = view.findViewById(R.id.tvDestination)
         tvFare = view.findViewById(R.id.tvFare)
+        tvDistance = view.findViewById(R.id.tvDistance)
+        tvDuration = view.findViewById(R.id.tvDuration)
+        tvVehicle = view.findViewById(R.id.tvVehicle)
+        progressBar = view.findViewById(R.id.progressBar)
         cardRideDetails = view.findViewById(R.id.cardRideDetails)
+        cardDriverDetails = view.findViewById(R.id.cardDriverDetails)
         btnRefresh = view.findViewById(R.id.btnRefresh)
         btnCancel = view.findViewById(R.id.btnCancel)
+        btnStartRide = view.findViewById(R.id.btnStartRide)
+        tvDriverName = view.findViewById(R.id.tvDriverName)
+        tvDriverPhone = view.findViewById(R.id.tvDriverPhone)
+        tvDriverVehicle = view.findViewById(R.id.tvDriverVehicle)
     }
 
-    private fun displayRideDetails(ride: RideModel) {
-        tvRideId.text = "Ride ID: ${ride.rideId.takeLast(8)}"
-        tvPickup.text = "📍 ${ride.pickup?.address ?: "N/A"}"
-        tvDestination.text = "🏁 ${ride.destination?.address ?: "N/A"}"
-        tvFare.text = "₹ ${ride.fare}"
+    private fun displayRideDetails() {
+        rideId?.let { id ->
+            db.collection("rides").document(id)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        val data = document.data ?: return@addOnSuccessListener
 
-        tvStatus.text = "⏳ Waiting for Driver..."
-        tvStatus.setTextColor(resources.getColor(R.color.primary, null))
-        cardRideDetails.visibility = View.VISIBLE
+                        val pickup = data["pickup"] as? Map<*, *>
+                        val destination = data["destination"] as? Map<*, *>
+                        val vehicleIcon = data["vehicleIcon"] as? String ?: "🚗"
+                        val vehicleName = data["vehicleName"] as? String ?: "Car"
+                        val distance = data["distance"] as? Double ?: 0.0
+                        val duration = data["duration"] as? Long ?: 0
+                        val totalFare = data["totalFare"] as? Double ?: 0.0
+
+                        tvRideId.text = "Ride ID: ${id.takeLast(8)}"
+                        tvPickup.text = "📍 ${pickup?.get("address") ?: "N/A"}"
+                        tvDestination.text = "🏁 ${destination?.get("address") ?: "N/A"}"
+                        tvDistance.text = "📍 %.1f km".format(distance)
+                        tvDuration.text = "⏱️ %d min".format(duration)
+                        tvVehicle.text = "$vehicleIcon $vehicleName"
+                        tvFare.text = "💰 ₹${totalFare.toInt()}"
+
+                        // ✅ Store fare for later use
+                        val fare = totalFare
+                        tvFare.tag = fare
+
+                        cardRideDetails.visibility = View.VISIBLE
+
+                        // ✅ Check current status
+                        val status = data["status"] as? String ?: "PENDING"
+                        handleStatusUpdate(status, data)
+                    }
+                }
+        }
+    }
+
+    private fun listenForRideUpdates() {
+        rideId?.let { id ->
+            db.collection("rides").document(id)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) return@addSnapshotListener
+
+                    val data = snapshot?.data ?: return@addSnapshotListener
+                    val status = data["status"] as? String ?: "PENDING"
+                    handleStatusUpdate(status, data)
+                }
+        }
+    }
+
+    private fun handleStatusUpdate(status: String, data: Map<String, Any>) {
+        when (status) {
+            "PENDING", "SEARCHING" -> showSearchingState(data)
+            "DRIVER_ASSIGNED" -> showDriverAssignedState(data)
+            "STARTED" -> navigateToTracking(data)
+            "COMPLETED", "CANCELLED", "EXPIRED" -> finishRide(status, data)
+        }
+    }
+
+    private fun showSearchingState(data: Map<String, Any>) {
+        tvStatus.text = "⏳ Searching for a driver..."
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
+        progressBar.visibility = View.VISIBLE
+
+        btnCancel.visibility = View.VISIBLE
+        btnStartRide.visibility = View.GONE
+        cardDriverDetails.visibility = View.GONE
+
+        // ✅ Show timer if not already started
+        if (countDownTimer == null) {
+            startTimer()
+        }
+    }
+
+    private fun showDriverAssignedState(data: Map<String, Any>) {
+        isDriverAssigned = true
+        progressBar.visibility = View.GONE
+        countDownTimer?.cancel()
+
+        tvStatus.text = "✅ Driver Assigned!"
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+
+        // ✅ Show driver details
+        val driverName = data["driverName"] as? String ?: "Unknown"
+        val driverPhone = data["driverPhone"] as? String ?: "N/A"
+        val driverVehicle = data["driverVehicle"] as? String ?: "Car"
+        val driverVehicleNumber = data["driverVehicleNumber"] as? String ?: "N/A"
+
+        tvDriverName.text = "🚗 $driverName"
+        tvDriverPhone.text = "📱 $driverPhone"
+        tvDriverVehicle.text = "🚙 $driverVehicle | $driverVehicleNumber"
+
+        // ✅ Show fare
+        val totalFare = data["totalFare"] as? Double ?: 0.0
+        tvFare.text = "💰 Total Fare: ₹${totalFare.toInt()}"
+
+        // ✅ Show Start Ride button, hide Cancel
+        btnCancel.visibility = View.GONE
+        btnStartRide.visibility = View.VISIBLE
+        btnStartRide.isEnabled = true
+        cardDriverDetails.visibility = View.VISIBLE
+
+        tvTimer.text = "🚗 Driver is on the way!"
+
+        Toast.makeText(requireContext(), "🚗 Driver $driverName assigned!", Toast.LENGTH_LONG).show()
+    }
+
+    private fun navigateToTracking(data: Map<String, Any>) {
+        val bundle = Bundle().apply {
+            putString("rideId", data["rideId"] as? String)
+            putString("driverName", data["driverName"] as? String)
+            putString("driverPhone", data["driverPhone"] as? String)
+            putString("driverVehicle", data["driverVehicle"] as? String)
+            putString("driverVehicleNumber", data["driverVehicleNumber"] as? String)
+        }
+        findNavController().navigate(R.id.action_processing_to_tracking, bundle)
+    }
+
+    private fun finishRide(status: String, data: Map<String, Any>) {
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+
+        when (status) {
+            "COMPLETED" -> {
+                tvStatus.text = "✅ Ride Completed!"
+                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+            }
+            "CANCELLED" -> {
+                tvStatus.text = "❌ Ride Cancelled"
+                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+            }
+            "EXPIRED" -> {
+                tvStatus.text = "⏰ Time Expired!"
+                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+            }
+        }
+
+        btnCancel.isEnabled = false
+        btnStartRide.visibility = View.GONE
     }
 
     // ============================================================
     // ✅ 5 MINUTE TIMER
     // ============================================================
 
-    private fun startTimer(ride: RideModel) {
-        // Calculate remaining time
-        val expiresAt = ride.expiresAt
-        if (expiresAt != null) {
-            val currentTime = System.currentTimeMillis()
-            val expireTime = expiresAt.toDate().time
-            timeLeft = expireTime - currentTime
+    private fun startTimer() {
+        val expireTime = System.currentTimeMillis() + 300000 // 5 minutes
+        val timeLeft = expireTime - System.currentTimeMillis()
 
-            if (timeLeft <= 0) {
-                tvTimer.text = "⏰ Time Expired!"
-                btnCancel.isEnabled = false
-                return
-            }
+        if (timeLeft <= 0) {
+            tvTimer.text = "⏰ Time Expired!"
+            return
         }
 
         countDownTimer = object : CountDownTimer(timeLeft, 1000) {
@@ -128,98 +257,54 @@ class RideProcessingFragment : Fragment() {
 
             override fun onFinish() {
                 tvTimer.text = "⏰ Time Expired!"
-                btnCancel.isEnabled = false
-                // Cancel the ride
-                ride.rideId?.let { rideId ->
-                    db.collection("rides").document(rideId)
+                rideId?.let { id ->
+                    db.collection("rides").document(id)
                         .update("status", "EXPIRED")
                 }
-                tvStatus.text = "❌ No driver available. Please try again."
-                tvStatus.setTextColor(resources.getColor(R.color.red, null))
+                Toast.makeText(requireContext(), "Time expired! Please try again.", Toast.LENGTH_SHORT).show()
             }
         }.start()
     }
 
     // ============================================================
-    // ✅ LISTEN FOR RIDE UPDATE
+    // ✅ BUTTON LISTENERS
     // ============================================================
 
-    private fun listenForRideUpdate(rideId: String) {
-        db.collection("rides").document(rideId)
-            .addSnapshotListener { document, error ->
-                if (error != null) {
-                    return@addSnapshotListener
-                }
-
-                val rideData = document?.data
-                if (rideData != null) {
-                    val status = rideData["status"] as? String ?: "PENDING"
-                    handleStatusUpdate(status, rideData)
-                }
-            }
-    }
-
-    private fun handleStatusUpdate(status: String, rideData: Map<String, Any>) {
-        when (status) {
-            "ACCEPTED" -> {
-                // ✅ Driver Assigned!
-                countDownTimer?.cancel()
-                tvStatus.text = "✅ Driver Assigned!"
-                tvStatus.setTextColor(resources.getColor(R.color.green, null))
-                tvTimer.text = "🚗 Driver is on the way!"
-
-                // Show driver details
-                val driverName = rideData["driverName"] as? String ?: "Unknown"
-                val driverPhone = rideData["driverPhone"] as? String ?: "N/A"
-                val driverVehicle = rideData["driverVehicle"] as? String ?: "Car"
-                val driverVehicleNumber = rideData["driverVehicleNumber"] as? String ?: "N/A"
-
-                Toast.makeText(requireContext(), "🚗 Driver $driverName assigned!", Toast.LENGTH_LONG).show()
-
-                // Navigate to Ride Tracking Screen (Step 7)
-                val bundle = Bundle().apply {
-                    putString("rideId", rideData["rideId"] as? String)
-                    putString("driverName", driverName)
-                    putString("driverPhone", driverPhone)
-                    putString("driverVehicle", driverVehicle)
-                    putString("driverVehicleNumber", driverVehicleNumber)
-                }
-                findNavController().navigate(R.id.action_processing_to_tracking, bundle)
-            }
-
-            "REJECTED" -> {
-                countDownTimer?.cancel()
-                tvStatus.text = "❌ Ride Rejected"
-                tvStatus.setTextColor(resources.getColor(R.color.red, null))
-                btnCancel.isEnabled = false
-                Toast.makeText(requireContext(), "Ride has been rejected.", Toast.LENGTH_LONG).show()
-            }
-
-            "EXPIRED" -> {
-                countDownTimer?.cancel()
-                tvStatus.text = "⏰ Time Expired!"
-                tvStatus.setTextColor(resources.getColor(R.color.red, null))
-                btnCancel.isEnabled = false
+    private fun setupListeners() {
+        btnRefresh.setOnClickListener {
+            rideId?.let { id ->
+                db.collection("rides").document(id)
+                    .get()
+                    .addOnSuccessListener { document ->
+                        if (document.exists()) {
+                            val data = document.data ?: return@addOnSuccessListener
+                            val status = data["status"] as? String ?: "PENDING"
+                            handleStatusUpdate(status, data)
+                            Toast.makeText(requireContext(), "Status refreshed", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(requireContext(), "Failed to refresh", Toast.LENGTH_SHORT).show()
+                    }
             }
         }
-    }
 
-    // ============================================================
-    // ✅ CHECK RIDE STATUS MANUALLY
-    // ============================================================
+        btnCancel.setOnClickListener {
+            cancelRide()
+        }
 
-    private fun checkRideStatus(rideId: String) {
-        db.collection("rides").document(rideId)
-            .get()
-            .addOnSuccessListener { document ->
-                if (document.exists()) {
-                    val status = document.getString("status") ?: "PENDING"
-                    handleStatusUpdate(status, document.data ?: emptyMap())
-                }
+        btnStartRide.setOnClickListener {
+            rideId?.let { id ->
+                db.collection("rides").document(id)
+                    .update("status", "STARTED")
+                    .addOnSuccessListener {
+                        Toast.makeText(requireContext(), "🚗 Ride Started!", Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(requireContext(), "Failed to start ride", Toast.LENGTH_SHORT).show()
+                    }
             }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "Failed to check status", Toast.LENGTH_SHORT).show()
-            }
+        }
     }
 
     // ============================================================
@@ -227,19 +312,13 @@ class RideProcessingFragment : Fragment() {
     // ============================================================
 
     private fun cancelRide() {
-        ride?.rideId?.let { rideId ->
-            db.collection("rides").document(rideId)
+        rideId?.let { id ->
+            db.collection("rides").document(id)
                 .update("status", "CANCELLED")
                 .addOnSuccessListener {
                     countDownTimer?.cancel()
-                    tvStatus.text = "❌ Ride Cancelled"
-                    tvStatus.setTextColor(resources.getColor(R.color.red, null))
-                    btnCancel.isEnabled = false
-                    Toast.makeText(requireContext(), "Ride cancelled successfully.", Toast.LENGTH_SHORT).show()
-                    // Go back after 2 seconds
-                    tvTimer.postDelayed({
-                        findNavController().popBackStack()
-                    }, 2000)
+                    Toast.makeText(requireContext(), "Ride Cancelled", Toast.LENGTH_SHORT).show()
+                    findNavController().popBackStack()
                 }
                 .addOnFailureListener {
                     Toast.makeText(requireContext(), "Failed to cancel ride", Toast.LENGTH_SHORT).show()

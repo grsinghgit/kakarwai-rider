@@ -1,29 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    app:startDestination="@id/homeFragment">
+    android:id="@+id/mobile_navigation_main"
+    app:startDestination="@id/bookRideFragment">
 
+    <!-- ✅ BookRideFragment -->
     <fragment
-        android:id="@+id/homeFragment"
+        android:id="@+id/bookRideFragment"
         android:name="com.gr.kakarwairider.BookRideFragment"
         android:label="Book Ride" />
 
+    <!-- Driver Fragment -->
+    <fragment
+        android:id="@+id/driverFragment"
+        android:name="com.gr.kakarwairider.ui.DriverFragment"
+        android:label="Driver" />
+
+    <!-- Vendor Fragment -->
+    <fragment
+        android:id="@+id/vendorFragment"
+        android:name="com.gr.kakarwairider.ui.VendorFragment"
+        android:label="Vendor" />
+
+    <!-- Admin Fragment -->
+    <fragment
+        android:id="@+id/adminFragment"
+        android:name="com.gr.kakarwairider.ui.AdminFragment"
+        android:label="Admin" />
+
+    <!-- Login Fragment -->
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.gr.kakarwairider.ui.LoginFragment"
+        android:label="Login" />
+
+    <!-- History Fragment -->
     <fragment
         android:id="@+id/historyFragment"
         android:name="com.gr.kakarwairider.HistoryFragment"
         android:label="History" />
 
+    <!-- Profile Fragment -->
     <fragment
         android:id="@+id/profileFragment"
         android:name="com.gr.kakarwairider.ProfileFragment"
         android:label="Profile" />
-    <!-- Processing Fragment -->
+
+    <!-- Ride Processing Fragment -->
     <fragment
         android:id="@+id/rideProcessingFragment"
         android:name="com.gr.kakarwairider.ui.RideProcessingFragment"
         android:label="Processing Ride" />
 
-    <!-- Tracking Fragment -->
+    <!-- Ride Tracking Fragment -->
     <fragment
         android:id="@+id/rideTrackingFragment"
         android:name="com.gr.kakarwairider.ui.RideTrackingFragment"
@@ -31,7 +60,17 @@
 
     <!-- Actions -->
     <action
+        android:id="@+id/action_ride_to_processing"
+        app:destination="@id/rideProcessingFragment" />
+
+    <action
         android:id="@+id/action_processing_to_tracking"
         app:destination="@id/rideTrackingFragment" />
+
+    <action
+        android:id="@+id/action_home_to_login"
+        app:destination="@id/loginFragment"
+        app:popUpTo="@id/bookRideFragment"
+        app:popUpToInclusive="true" />
 
 </navigation>

@@ -88,6 +88,24 @@
             android:contentDescription="Destination options" />
     </LinearLayout>
 
+
+    <!-- Vehicle Selection -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Vehicle"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/vehicleRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:orientation="horizontal" />
+
     <!-- Map View (जहाँ Route दिखेगा) -->
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/mapFragment"

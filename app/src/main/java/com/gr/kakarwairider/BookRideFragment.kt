@@ -23,6 +23,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -31,8 +33,12 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.*
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.gr.kakarwairider.adapter.VehicleSelectionAdapter
 import com.gr.kakarwairider.api.DistanceMatrixResponse
 import com.gr.kakarwairider.api.GoogleMapsApiService
+import com.gr.kakarwairider.model.VehicleOption
 import com.gr.kakarwairider.viewmodel.BookRideViewModel
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -49,6 +55,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     private lateinit var tvDuration: TextView
     private lateinit var tvFare: TextView
     private lateinit var btnBookNow: MaterialButton
+    private lateinit var vehicleRecyclerView: RecyclerView
 
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -65,11 +72,16 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     private var durationValue: Int = 0
     private var fareValue: Double = 0.0
 
+    private lateinit var vehicleAdapter: VehicleSelectionAdapter
+    private var selectedVehicle: VehicleOption? = null
+
     private val viewModel: BookRideViewModel by viewModels()
+    private val db = FirebaseFirestore.getInstance()
     private var locationDialog: AlertDialog? = null
 
     private val PER_KM_RATE = 12.0
     private val BASE_FARE = 50.0
+    private val LOCATION_PERMISSION_REQUEST = 200
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -83,6 +95,24 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         super.onViewCreated(view, savedInstanceState)
 
         initViews(view)
+        setupVehicleSelection()
+
+        arguments?.let {
+            val vehicleType = it.getString("vehicleType") ?: "car"
+            val vehicleIcon = it.getString("vehicleIcon") ?: "🚗"
+            val vehicleName = it.getString("vehicleName") ?: "Car"
+            val distance = it.getFloat("distance") ?: 0.0f
+            val duration = it.getInt("duration") ?: 0
+            val totalFare = it.getFloat("totalFare") ?: 0.0f
+
+            distanceValue = distance.toDouble()
+            durationValue = duration
+            fareValue = totalFare.toDouble()
+
+            tvDistance.text = "📍 Distance: %.1f km".format(distance)
+            tvDuration.text = "⏱️ Time: %d min".format(duration)
+            tvFare.text = "$vehicleIcon $vehicleName: ₹${totalFare.toInt()}"
+        }
 
         val mapFragment = childFragmentManager.findFragmentById(R.id.mapFragment) as? SupportMapFragment
         mapFragment?.getMapAsync(this)
@@ -92,50 +122,35 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         setupListeners()
         checkLocationPermissionAndEnable()
 
-        // ✅ Observe ride creation
         viewModel.rideCreated.observe(viewLifecycleOwner) { ride ->
             if (ride != null) {
                 val bundle = Bundle().apply {
                     putString("rideId", ride.rideId)
-                    putString("userId", ride.userId)
-                    putString("userPhone", ride.userPhone)
-                    putString("userName", ride.userName)
-
-                    // Pickup Location
                     putString("pickupAddress", ride.pickup?.address ?: "")
-                    putDouble("pickupLat", ride.pickup?.lat ?: 0.0)
-                    putDouble("pickupLng", ride.pickup?.lng ?: 0.0)
-
-                    // Destination Location
                     putString("destinationAddress", ride.destination?.address ?: "")
-                    putDouble("destinationLat", ride.destination?.lat ?: 0.0)
-                    putDouble("destinationLng", ride.destination?.lng ?: 0.0)
-
-                    putString("rideType", ride.rideType)
                     putDouble("distance", ride.distance)
                     putInt("duration", ride.duration)
-                    putDouble("fare", ride.fare)
-
-                    putString("status", ride.status)
-                    putString("paymentMethod", ride.paymentMethod)
-                    putString("paymentStatus", ride.paymentStatus)
+                    putDouble("totalFare", ride.totalFare)
+                    putString("vehicleType", ride.vehicleType)
+                    putString("vehicleIcon", ride.vehicleIcon)
+                    putString("vehicleName", ride.vehicleName)
                 }
                 findNavController().navigate(R.id.action_ride_to_processing, bundle)
             }
         }
 
-        // ✅ Observe error
         viewModel.errorMessage.observe(viewLifecycleOwner) { error ->
             error?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
                 viewModel.clearError()
+                btnBookNow.isEnabled = true
+                btnBookNow.text = "🚗 Book Now"
             }
         }
 
-        // ✅ Observe loading
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             btnBookNow.isEnabled = !isLoading
-            btnBookNow.text = if (isLoading) "Booking..." else "Book Now"
+            btnBookNow.text = if (isLoading) "⏳ Booking..." else "🚗 Book Now"
         }
     }
 
@@ -148,6 +163,30 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         tvDuration = view.findViewById(R.id.tvDuration)
         tvFare = view.findViewById(R.id.tvFare)
         btnBookNow = view.findViewById(R.id.btnBookNow)
+        vehicleRecyclerView = view.findViewById(R.id.vehicleRecyclerView)
+    }
+
+    private fun setupVehicleSelection() {
+        val vehicles = VehicleOption.getDefaultVehicles()
+        vehicleAdapter = VehicleSelectionAdapter(vehicles) { vehicle ->
+            selectedVehicle = vehicle
+            if (distanceValue > 0) {
+                calculateFareWithVehicle(vehicle)
+            }
+        }
+        vehicleRecyclerView.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
+        vehicleRecyclerView.adapter = vehicleAdapter
+
+        selectedVehicle = vehicles[1]
+        vehicleAdapter.setSelectedPosition(1)
+    }
+
+    private fun calculateFareWithVehicle(vehicle: VehicleOption) {
+        val distanceFare = distanceValue * vehicle.perKmRate
+        val totalFare = vehicle.basePrice + distanceFare
+        fareValue = totalFare
+        tvFare.text = "${vehicle.icon} ${vehicle.name}: ₹${totalFare.toInt()}"
+        btnBookNow.isEnabled = true
     }
 
     private fun setupListeners() {
@@ -176,40 +215,108 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
             val destination = etDestination.text.toString()
 
             if (pickup.isNotEmpty() && destination.isNotEmpty()) {
-                viewModel.bookRide(
-                    pickupAddress = pickup,
-                    pickupLat = pickupLatLng?.latitude ?: 0.0,
-                    pickupLng = pickupLatLng?.longitude ?: 0.0,
-                    destinationAddress = destination,
-                    destinationLat = destinationLatLng?.latitude ?: 0.0,
-                    destinationLng = destinationLatLng?.longitude ?: 0.0,
-                    rideType = "Mini",
-                    distance = distanceValue,
-                    duration = durationValue,
-                    fare = fareValue
-                )
+                if (selectedVehicle == null) {
+                    Toast.makeText(requireContext(), "Please select a vehicle", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                checkActiveRide {
+                    val vehicle = selectedVehicle!!
+                    viewModel.bookRide(
+                        pickupAddress = pickup,
+                        pickupLat = pickupLatLng?.latitude ?: 0.0,
+                        pickupLng = pickupLatLng?.longitude ?: 0.0,
+                        destinationAddress = destination,
+                        destinationLat = destinationLatLng?.latitude ?: 0.0,
+                        destinationLng = destinationLatLng?.longitude ?: 0.0,
+                        vehicleType = vehicle.type,
+                        vehicleIcon = vehicle.icon,
+                        vehicleName = vehicle.name,
+                        distance = distanceValue,
+                        duration = durationValue,
+                        basePrice = vehicle.basePrice,
+                        perKmRate = vehicle.perKmRate,
+                        totalFare = fareValue
+                    )
+                }
             } else {
                 Toast.makeText(requireContext(), "Please select pickup and destination", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
+    private fun checkActiveRide(callback: () -> Unit) {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        if (userId == null) {
+            Toast.makeText(requireContext(), "Please login first", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        db.collection("rides")
+            .whereEqualTo("userId", userId)
+            .whereIn("status", listOf("PENDING", "SEARCHING", "DRIVER_ASSIGNED", "STARTED"))
+            .get()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty()) {
+                    callback()
+                } else {
+                    Toast.makeText(requireContext(),
+                        "⚠️ You already have an active ride!\nPlease complete it first.",
+                        Toast.LENGTH_LONG).show()
+                    val rideId = documents.first().id
+                    val bundle = Bundle().apply {
+                        putString("rideId", rideId)
+                    }
+                    findNavController().navigate(R.id.action_ride_to_processing, bundle)
+                }
+            }
+            .addOnFailureListener {
+                callback()
+            }
+    }
+
     // ============================================================
-    // LOCATION PERMISSION & ENABLE CHECK
+    // LOCATION FUNCTIONS
     // ============================================================
 
     private fun checkLocationPermissionAndEnable() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 200)
-            return
-        }
-        isLocationPermissionGranted = true
-
-        if (!isLocationEnabled()) {
-            showUncancelableLocationDialog()
+            == PackageManager.PERMISSION_GRANTED) {
+            isLocationPermissionGranted = true
+            if (isLocationEnabled()) {
+                getCurrentLocationForMap()
+            } else {
+                showUncancelableLocationDialog()
+            }
         } else {
-            getCurrentLocationForMap()
+            requestLocationPermission()
+        }
+    }
+
+    private fun requestLocationPermission() {
+        if (shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION)) {
+            AlertDialog.Builder(requireContext())
+                .setTitle("Location Permission Required")
+                .setMessage("This app needs location access to show nearby rides and book rides.")
+                .setPositiveButton("Grant") { _, _ ->
+                    requestPermissions(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ),
+                        LOCATION_PERMISSION_REQUEST
+                    )
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } else {
+            requestPermissions(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ),
+                LOCATION_PERMISSION_REQUEST
+            )
         }
     }
 
@@ -238,10 +345,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         locationDialog = null
     }
 
-    // ============================================================
-    // GET CURRENT LOCATION FOR MAP CENTER
-    // ============================================================
-
     private fun getCurrentLocationForMap() {
         if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED) {
@@ -263,6 +366,11 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun requestNewLocation() {
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+
         locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
             .setMinUpdateIntervalMillis(5000)
             .build()
@@ -280,15 +388,8 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
             }
         }
 
-        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-        }
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
     }
-
-    // ============================================================
-    // CENTER MAP ON CURRENT LOCATION WITH 50KM RADIUS
-    // ============================================================
 
     private fun centerMapOnCurrentLocation() {
         currentLocation?.let { latLng ->
@@ -309,10 +410,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         mMap.addCircle(circleOptions)
     }
 
-    // ============================================================
-    // MAP READY CALLBACK
-    // ============================================================
-
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         mMap.uiSettings.isZoomControlsEnabled = true
@@ -321,11 +418,10 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         val defaultLocation = LatLng(28.6139, 77.2090)
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 12f))
 
-        if (isLocationPermissionGranted && isLocationEnabled()) {
-            if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED) {
-                mMap.isMyLocationEnabled = true
-            }
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED) {
+            mMap.isMyLocationEnabled = true
+
             if (currentLocation != null) {
                 centerMapOnCurrentLocation()
             } else {
@@ -337,10 +433,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
             Toast.makeText(requireContext(), "Enable location for nearby places", Toast.LENGTH_LONG).show()
         }
     }
-
-    // ============================================================
-    // HELPER FUNCTIONS
-    // ============================================================
 
     private fun addMarker(latLng: LatLng, title: String) {
         val marker = mMap.addMarker(
@@ -389,10 +481,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         }
     }
 
-    // ============================================================
-    // LOCATION OPTIONS DIALOG
-    // ============================================================
-
     private fun showLocationOptions() {
         val options = arrayOf("🔍 Search", "📍 Select from Map", "📌 Use Current Location")
         AlertDialog.Builder(requireContext())
@@ -423,7 +511,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     private fun getCurrentLocation() {
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
             != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 200)
+            requestLocationPermission()
             return
         }
 
@@ -445,14 +533,15 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     }
 
     // ============================================================
-    // REAL ROUTE AND FARE CALCULATION (Google Distance Matrix API)
+    // ROUTE AND FARE CALCULATION
     // ============================================================
 
     private fun calculateRouteAndFare(origin: LatLng, destination: LatLng) {
-        tvDistance.text = "Calculating..."
-        tvDuration.text = "Please wait..."
-        tvFare.text = "₹ ---"
+        tvDistance.text = "📍 Calculating distance..."
+        tvDuration.text = "⏱️ Please wait..."
+        tvFare.text = "💰 Calculating fare..."
         btnBookNow.isEnabled = false
+        btnBookNow.text = "⏳ Calculating..."
 
         val apiKey = getString(R.string.google_maps_key)
         val origins = "${origin.latitude},${origin.longitude}"
@@ -480,13 +569,19 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                                 distanceValue = distanceInMeters / 1000.0
                                 val durationInSeconds = element.duration?.value ?: 0
                                 durationValue = durationInSeconds / 60
-                                fareValue = (distanceValue * PER_KM_RATE) + BASE_FARE
 
-                                tvDistance.text = "Distance: %.1f km".format(distanceValue)
-                                tvDuration.text = "Time: %d min".format(durationValue)
-                                tvFare.text = "Fare: ₹ %.0f".format(fareValue)
-                                btnBookNow.isEnabled = true
+                                tvDistance.text = "📍 Distance: %.1f km".format(distanceValue)
+                                tvDuration.text = "⏱️ Time: %d min".format(durationValue)
 
+                                selectedVehicle?.let {
+                                    calculateFareWithVehicle(it)
+                                } ?: run {
+                                    val defaultVehicle = VehicleOption.getDefaultVehicles()[1]
+                                    selectedVehicle = defaultVehicle
+                                    calculateFareWithVehicle(defaultVehicle)
+                                }
+
+                                btnBookNow.text = "🚗 Book Now"
                                 drawRoute(origin, destination)
                             } else {
                                 showCalculationError()
@@ -513,6 +608,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         tvDistance.text = "⚠️ Failed to calculate"
         tvDuration.text = "Please try again"
         tvFare.text = "₹ ---"
+        btnBookNow.isEnabled = false
         Toast.makeText(requireContext(), "Failed to calculate distance. Please try again.", Toast.LENGTH_SHORT).show()
     }
 
@@ -534,21 +630,23 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        if (requestCode == 200 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            isLocationPermissionGranted = true
-            if (!isLocationEnabled()) {
-                showUncancelableLocationDialog()
-            } else {
-                getCurrentLocationForMap()
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        when (requestCode) {
+            LOCATION_PERMISSION_REQUEST -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    isLocationPermissionGranted = true
+                    if (!isLocationEnabled()) {
+                        showUncancelableLocationDialog()
+                    } else {
+                        getCurrentLocationForMap()
+                    }
+                } else {
+                    Toast.makeText(requireContext(), "Location permission required to book rides", Toast.LENGTH_LONG).show()
+                }
             }
-        } else {
-            Toast.makeText(requireContext(), "Location permission required", Toast.LENGTH_SHORT).show()
         }
     }
-
-    // ============================================================
-    // ACTIVITY RESULT
-    // ============================================================
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -571,10 +669,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
             }
         }
     }
-
-    // ============================================================
-    // RESUME - Check if location was enabled
-    // ============================================================
 
     override fun onResume() {
         super.onResume()

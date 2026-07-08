@@ -4,86 +4,77 @@
     android:id="@+id/mobile_navigation_main"
     app:startDestination="@id/loginFragment">
 
-    <!-- ============================================================ -->
-    <!-- LOGIN FRAGMENT -->
-    <!-- ============================================================ -->
+    <!-- Login -->
     <fragment
         android:id="@+id/loginFragment"
         android:name="com.gr.kakarwairider.ui.LoginFragment"
         android:label="Login" />
 
-    <!-- ============================================================ -->
-    <!-- HOME FRAGMENT -->
-    <!-- ============================================================ -->
+    <!-- Home (Book Ride) -->
     <fragment
         android:id="@+id/homeFragment"
         android:name="com.gr.kakarwairider.ui.HomeFragment"
         android:label="Home" />
 
-    <!-- ============================================================ -->
-    <!-- DRIVER FRAGMENT -->
-    <!-- ============================================================ -->
+    <!-- Driver -->
     <fragment
         android:id="@+id/driverFragment"
         android:name="com.gr.kakarwairider.ui.DriverFragment"
         android:label="Driver" />
 
-    <!-- ============================================================ -->
-    <!-- VENDOR FRAGMENT -->
-    <!-- ============================================================ -->
+    <!-- Vendor -->
     <fragment
         android:id="@+id/vendorFragment"
         android:name="com.gr.kakarwairider.ui.VendorFragment"
         android:label="Vendor" />
 
-    <!-- ============================================================ -->
-    <!-- ADMIN FRAGMENT -->
-    <!-- ============================================================ -->
+    <!-- Admin -->
     <fragment
         android:id="@+id/adminFragment"
         android:name="com.gr.kakarwairider.ui.AdminFragment"
         android:label="Admin" />
 
-    <!-- ============================================================ -->
-    <!-- RIDE PROCESSING FRAGMENT -->
-    <!-- ============================================================ -->
+    <!-- History -->
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.gr.kakarwairider.HistoryFragment"
+        android:label="History" />
+
+    <!-- Profile -->
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.gr.kakarwairider.ProfileFragment"
+        android:label="Profile" />
+
+    <!-- Ride Processing -->
     <fragment
         android:id="@+id/rideProcessingFragment"
         android:name="com.gr.kakarwairider.ui.RideProcessingFragment"
         android:label="Processing Ride" />
 
-    <!-- ============================================================ -->
-    <!-- RIDE TRACKING FRAGMENT -->
-    <!-- ============================================================ -->
+    <!-- Ride Tracking -->
     <fragment
         android:id="@+id/rideTrackingFragment"
         android:name="com.gr.kakarwairider.ui.RideTrackingFragment"
         android:label="Ride Tracking" />
 
-    <!-- ============================================================ -->
-    <!-- ACTIONS -->
-    <!-- ============================================================ -->
-
-    <!-- Login to Home -->
+    <!-- Actions -->
     <action
         android:id="@+id/action_login_to_home"
         app:destination="@id/homeFragment"
         app:popUpTo="@id/loginFragment"
         app:popUpToInclusive="true" />
 
-    <!-- Home to Login (Logout) -->
     <action
         android:id="@+id/action_home_to_login"
         app:destination="@id/loginFragment"
         app:popUpTo="@id/homeFragment"
         app:popUpToInclusive="true" />
 
-    <!-- ✅ Ride to Processing -->
     <action
         android:id="@+id/action_ride_to_processing"
         app:destination="@id/rideProcessingFragment" />
 
-    <!-- ✅ Processing to Tracking -->
     <action
         android:id="@+id/action_processing_to_tracking"
         app:destination="@id/rideTrackingFragment" />

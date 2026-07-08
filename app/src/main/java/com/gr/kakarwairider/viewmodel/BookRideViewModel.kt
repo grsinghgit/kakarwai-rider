@@ -27,7 +27,7 @@ class BookRideViewModel : ViewModel() {
     val errorMessage: LiveData<String?> = _errorMessage
 
     // ============================================================
-    // ✅ BOOK RIDE – With Area Detection
+    // ✅ BOOK RIDE – Complete Function
     // ============================================================
 
     fun bookRide(
@@ -37,38 +37,39 @@ class BookRideViewModel : ViewModel() {
         destinationAddress: String,
         destinationLat: Double,
         destinationLng: Double,
-        rideType: String,
+        vehicleType: String,
+        vehicleIcon: String,
+        vehicleName: String,
         distance: Double,
         duration: Int,
-        fare: Double
+        basePrice: Double,
+        perKmRate: Double,
+        totalFare: Double
     ) {
         Log.d(TAG, "========== BOOK RIDE STARTED ==========")
-        Log.d(TAG, "Pickup: $pickupAddress ($pickupLat, $pickupLng)")
-        Log.d(TAG, "Destination: $destinationAddress ($destinationLat, $destinationLng)")
-        Log.d(TAG, "RideType: $rideType, Distance: $distance km, Duration: $duration min, Fare: $fare")
+        Log.d(TAG, "Vehicle: $vehicleName ($vehicleType)")
 
         _isLoading.value = true
 
         val currentUser = auth.currentUser
         if (currentUser == null) {
-            Log.e(TAG, "❌ User not logged in")
             _errorMessage.value = "User not logged in"
             _isLoading.value = false
             return
         }
 
-        Log.d(TAG, "✅ User logged in: ${currentUser.uid}, Phone: ${currentUser.phoneNumber}")
+        Log.d(TAG, "User logged in: ${currentUser.uid}")
 
         // Find area based on user location
         findNearestArea(pickupLat, pickupLng) { areaId, adminId ->
             if (areaId == null) {
-                Log.e(TAG, "❌ No area found for location: ($pickupLat, $pickupLng)")
+                Log.e(TAG, "No area found")
                 _errorMessage.value = "Service not available in your area"
                 _isLoading.value = false
                 return@findNearestArea
             }
 
-            Log.d(TAG, "✅ Area found: $areaId, AdminId: $adminId")
+            Log.d(TAG, "Area found: $areaId")
 
             createRide(
                 rideId = db.collection("rides").document().id,
@@ -80,10 +81,14 @@ class BookRideViewModel : ViewModel() {
                 destinationAddress = destinationAddress,
                 destinationLat = destinationLat,
                 destinationLng = destinationLng,
-                rideType = rideType,
+                vehicleType = vehicleType,
+                vehicleIcon = vehicleIcon,
+                vehicleName = vehicleName,
                 distance = distance,
                 duration = duration,
-                fare = fare,
+                basePrice = basePrice,
+                perKmRate = perKmRate,
+                totalFare = totalFare,
                 areaId = areaId,
                 adminId = adminId
             )
@@ -99,26 +104,12 @@ class BookRideViewModel : ViewModel() {
         userLng: Double,
         callback: (areaId: String?, adminId: String?) -> Unit
     ) {
-        Log.d(TAG, "🔍 Finding nearest area for user location: ($userLat, $userLng)")
-
         db.collection("areas")
             .whereEqualTo("isActive", true)
             .get()
             .addOnSuccessListener { documents ->
-                Log.d(TAG, "📄 Areas found with filter (isActive=true): ${documents.size()}")
-
                 if (documents.isEmpty()) {
-                    // ✅ Check without filter to debug
-                    db.collection("areas")
-                        .get()
-                        .addOnSuccessListener { allDocs ->
-                            Log.d(TAG, "📄 Total areas (without filter): ${allDocs.size()}")
-                            for (doc in allDocs) {
-                                val isActive = doc.getBoolean("isActive")
-                                Log.d(TAG, "   Document: ${doc.id}, isActive: $isActive")
-                            }
-                        }
-                    Log.e(TAG, "❌ No active areas found")
+                    Log.d(TAG, "No active areas found")
                     callback(null, null)
                     return@addOnSuccessListener
                 }
@@ -132,10 +123,6 @@ class BookRideViewModel : ViewModel() {
                     val radiusKm = document.getDouble("radiusKm") ?: 50.0
                     val areaId = document.id
                     val adminId = document.getString("adminId")
-                    val areaName = document.getString("areaName")
-
-                    Log.d(TAG, "📍 Checking area: $areaName ($areaId)")
-                    Log.d(TAG, "   Center: $center, Radius: $radiusKm km")
 
                     if (center != null) {
                         val distance = calculateDistance(
@@ -143,31 +130,21 @@ class BookRideViewModel : ViewModel() {
                             center.latitude, center.longitude
                         )
 
-                        Log.d(TAG, "   Distance from user: %.2f km".format(distance))
-
                         if (distance <= radiusKm && distance < minDistance) {
                             minDistance = distance
                             nearestAreaId = areaId
                             nearestAdminId = adminId
-                            Log.d(TAG, "   ✅ Area matches! Distance: %.2f km".format(distance))
-                        } else {
-                            Log.d(TAG, "   ❌ Area not in range (Distance: %.2f km > Radius: %.2f km)".format(distance, radiusKm))
                         }
-                    } else {
-                        Log.e(TAG, "   ❌ Center is null for document: ${document.id}")
                     }
                 }
 
                 if (nearestAreaId != null) {
-                    Log.d(TAG, "✅ Final area selected: $nearestAreaId (Distance: %.2f km)".format(minDistance))
                     callback(nearestAreaId, nearestAdminId)
                 } else {
-                    Log.e(TAG, "❌ No area found within radius for user location: ($userLat, $userLng)")
                     callback(null, null)
                 }
             }
-            .addOnFailureListener { e ->
-                Log.e(TAG, "❌ Error fetching areas: ${e.message}", e)
+            .addOnFailureListener {
                 callback(null, null)
             }
     }
@@ -186,17 +163,18 @@ class BookRideViewModel : ViewModel() {
         destinationAddress: String,
         destinationLat: Double,
         destinationLng: Double,
-        rideType: String,
+        vehicleType: String,
+        vehicleIcon: String,
+        vehicleName: String,
         distance: Double,
         duration: Int,
-        fare: Double,
+        basePrice: Double,
+        perKmRate: Double,
+        totalFare: Double,
         areaId: String,
         adminId: String?
     ) {
-        Log.d(TAG, "📝 Creating ride...")
-        Log.d(TAG, "   RideId: $rideId")
-        Log.d(TAG, "   AreaId: $areaId")
-        Log.d(TAG, "   AdminId: $adminId")
+        Log.d(TAG, "Creating ride...")
 
         val currentTime = Timestamp.now()
         val expireTime = Timestamp(Date(System.currentTimeMillis() + (5 * 60 * 1000)))
@@ -216,10 +194,15 @@ class BookRideViewModel : ViewModel() {
                 "lat" to destinationLat,
                 "lng" to destinationLng
             ),
-            "rideType" to rideType,
+            "vehicleType" to vehicleType,
+            "vehicleIcon" to vehicleIcon,
+            "vehicleName" to vehicleName,
             "distance" to distance,
             "duration" to duration,
-            "fare" to fare,
+            "basePrice" to basePrice,
+            "perKmRate" to perKmRate,
+            "distanceFare" to (distance * perKmRate),
+            "totalFare" to totalFare,
             "areaId" to areaId,
             "adminId" to (adminId ?: ""),
             "status" to "PENDING",
@@ -235,14 +218,13 @@ class BookRideViewModel : ViewModel() {
             "expiresAt" to expireTime
         )
 
-        Log.d(TAG, "📤 Saving ride to Firestore...")
-
         db.collection("rides")
             .document(rideId)
             .set(rideData)
             .addOnSuccessListener {
-                Log.d(TAG, "✅ Ride created successfully! RideId: $rideId")
+                Log.d(TAG, "Ride created successfully!")
                 _isLoading.value = false
+
                 val ride = RideModel(
                     rideId = rideId,
                     userId = userId,
@@ -250,16 +232,23 @@ class BookRideViewModel : ViewModel() {
                     userName = "",
                     pickup = LocationData(pickupAddress, pickupLat, pickupLng),
                     destination = LocationData(destinationAddress, destinationLat, destinationLng),
-                    rideType = rideType,
+                    vehicleType = vehicleType,
+                    vehicleIcon = vehicleIcon,
+                    vehicleName = vehicleName,
                     distance = distance,
                     duration = duration,
-                    fare = fare,
+                    basePrice = basePrice,
+                    perKmRate = perKmRate,
+                    distanceFare = distance * perKmRate,
+                    totalFare = totalFare,
                     status = "PENDING",
                     driverId = null,
                     driverName = null,
                     driverPhone = null,
                     driverVehicle = null,
                     driverVehicleNumber = null,
+                    areaId = areaId,
+                    adminId = adminId ?: "",
                     paymentMethod = "CASH",
                     paymentStatus = "PENDING",
                     createdAt = currentTime,
@@ -268,37 +257,28 @@ class BookRideViewModel : ViewModel() {
                 )
                 _rideCreated.value = ride
                 _errorMessage.value = null
-                Log.d(TAG, "========== BOOK RIDE COMPLETED ==========")
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "❌ Failed to create ride: ${e.message}", e)
+                Log.e(TAG, "Failed: ${e.message}")
                 _isLoading.value = false
                 _errorMessage.value = "Failed to book ride: ${e.message}"
             }
     }
 
     // ============================================================
-    // ✅ DISTANCE CALCULATION (Haversine Formula)
+    // ✅ DISTANCE CALCULATION
     // ============================================================
 
     private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
-        val R = 6371.0 // Earth's radius in km
-
+        val R = 6371.0
         val dLat = Math.toRadians(lat2 - lat1)
         val dLng = Math.toRadians(lng2 - lng1)
-
         val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
                 Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
                 Math.sin(dLng / 2) * Math.sin(dLng / 2)
-
         val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-
         return R * c
     }
-
-    // ============================================================
-    // ✅ CLEAR ERROR
-    // ============================================================
 
     fun clearError() {
         _errorMessage.value = null

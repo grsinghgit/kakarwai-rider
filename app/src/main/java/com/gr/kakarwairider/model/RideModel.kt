@@ -11,17 +11,31 @@ data class RideModel(
     val pickup: LocationData? = null,
     val destination: LocationData? = null,
 
-    val rideType: String = "",
+    // ✅ Vehicle Selection Fields
+    val vehicleType: String = "car",
+    val vehicleIcon: String = "🚗",
+    val vehicleName: String = "Car",
+
     val distance: Double = 0.0,
     val duration: Int = 0,
-    val fare: Double = 0.0,
 
-    val status: String = "PENDING",
+    // ✅ Fare Breakdown
+    val basePrice: Double = 0.0,
+    val perKmRate: Double = 0.0,
+    val distanceFare: Double = 0.0,
+    val totalFare: Double = 0.0,
+
+    // ✅ Status Flow
+    val status: String = "PENDING",  // PENDING, SEARCHING, DRIVER_ASSIGNED, STARTED, COMPLETED, CANCELLED
+
     val driverId: String? = null,
     val driverName: String? = null,
     val driverPhone: String? = null,
     val driverVehicle: String? = null,
     val driverVehicleNumber: String? = null,
+
+    val areaId: String = "",
+    val adminId: String = "",
 
     val paymentMethod: String = "CASH",
     val paymentStatus: String = "PENDING",

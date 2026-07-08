@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Bundle
 import android.provider.Settings
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AlertDialog
@@ -21,7 +20,6 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.FirebaseApp
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,7 +31,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
 
         val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -62,10 +59,6 @@ class MainActivity : AppCompatActivity() {
         updateUIBasedOnLoginStatus()
     }
 
-    // ============================================================
-    // ✅ MENU
-    // ============================================================
-
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
@@ -79,19 +72,11 @@ class MainActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    // ============================================================
-    // ✅ LOGOUT
-    // ============================================================
-
     private fun logout() {
         FirebaseAuth.getInstance().signOut()
         updateUIBasedOnLoginStatus()
         navController.navigate(R.id.action_home_to_login)
     }
-
-    // ============================================================
-    // ✅ UPDATE UI BASED ON LOGIN STATUS
-    // ============================================================
 
     fun updateUIBasedOnLoginStatus() {
         val currentUser = FirebaseAuth.getInstance().currentUser
@@ -104,10 +89,6 @@ class MainActivity : AppCompatActivity() {
             supportActionBar?.title = "Kakarwai Rider"
         }
     }
-
-    // ============================================================
-    // ✅ LOCATION CHECK
-    // ============================================================
 
     private fun checkLocationAndProceed() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
