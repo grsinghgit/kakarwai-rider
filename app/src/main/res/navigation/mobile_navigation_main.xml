@@ -4,41 +4,88 @@
     android:id="@+id/mobile_navigation_main"
     app:startDestination="@id/loginFragment">
 
+    <!-- ============================================================ -->
+    <!-- LOGIN FRAGMENT -->
+    <!-- ============================================================ -->
     <fragment
         android:id="@+id/loginFragment"
         android:name="com.gr.kakarwairider.ui.LoginFragment"
         android:label="Login" />
 
+    <!-- ============================================================ -->
+    <!-- HOME FRAGMENT -->
+    <!-- ============================================================ -->
     <fragment
         android:id="@+id/homeFragment"
         android:name="com.gr.kakarwairider.ui.HomeFragment"
         android:label="Home" />
 
+    <!-- ============================================================ -->
+    <!-- DRIVER FRAGMENT -->
+    <!-- ============================================================ -->
     <fragment
         android:id="@+id/driverFragment"
         android:name="com.gr.kakarwairider.ui.DriverFragment"
         android:label="Driver" />
 
+    <!-- ============================================================ -->
+    <!-- VENDOR FRAGMENT -->
+    <!-- ============================================================ -->
     <fragment
         android:id="@+id/vendorFragment"
         android:name="com.gr.kakarwairider.ui.VendorFragment"
         android:label="Vendor" />
 
+    <!-- ============================================================ -->
+    <!-- ADMIN FRAGMENT -->
+    <!-- ============================================================ -->
     <fragment
         android:id="@+id/adminFragment"
         android:name="com.gr.kakarwairider.ui.AdminFragment"
         android:label="Admin" />
 
+    <!-- ============================================================ -->
+    <!-- RIDE PROCESSING FRAGMENT -->
+    <!-- ============================================================ -->
+    <fragment
+        android:id="@+id/rideProcessingFragment"
+        android:name="com.gr.kakarwairider.ui.RideProcessingFragment"
+        android:label="Processing Ride" />
+
+    <!-- ============================================================ -->
+    <!-- RIDE TRACKING FRAGMENT -->
+    <!-- ============================================================ -->
+    <fragment
+        android:id="@+id/rideTrackingFragment"
+        android:name="com.gr.kakarwairider.ui.RideTrackingFragment"
+        android:label="Ride Tracking" />
+
+    <!-- ============================================================ -->
+    <!-- ACTIONS -->
+    <!-- ============================================================ -->
+
+    <!-- Login to Home -->
     <action
         android:id="@+id/action_login_to_home"
         app:destination="@id/homeFragment"
         app:popUpTo="@id/loginFragment"
         app:popUpToInclusive="true" />
 
+    <!-- Home to Login (Logout) -->
     <action
         android:id="@+id/action_home_to_login"
         app:destination="@id/loginFragment"
         app:popUpTo="@id/homeFragment"
         app:popUpToInclusive="true" />
+
+    <!-- ✅ Ride to Processing -->
+    <action
+        android:id="@+id/action_ride_to_processing"
+        app:destination="@id/rideProcessingFragment" />
+
+    <!-- ✅ Processing to Tracking -->
+    <action
+        android:id="@+id/action_processing_to_tracking"
+        app:destination="@id/rideTrackingFragment" />
 
 </navigation>

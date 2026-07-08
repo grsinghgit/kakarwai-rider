@@ -22,6 +22,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -60,10 +61,13 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     private var isLocationPermissionGranted = false
     private var currentLocation: LatLng? = null
 
+    private var distanceValue: Double = 0.0
+    private var durationValue: Int = 0
+    private var fareValue: Double = 0.0
+
     private val viewModel: BookRideViewModel by viewModels()
     private var locationDialog: AlertDialog? = null
 
-    // Per KM Rate
     private val PER_KM_RATE = 12.0
     private val BASE_FARE = 50.0
 
@@ -87,6 +91,52 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
         setupListeners()
         checkLocationPermissionAndEnable()
+
+        // ✅ Observe ride creation
+        viewModel.rideCreated.observe(viewLifecycleOwner) { ride ->
+            if (ride != null) {
+                val bundle = Bundle().apply {
+                    putString("rideId", ride.rideId)
+                    putString("userId", ride.userId)
+                    putString("userPhone", ride.userPhone)
+                    putString("userName", ride.userName)
+
+                    // Pickup Location
+                    putString("pickupAddress", ride.pickup?.address ?: "")
+                    putDouble("pickupLat", ride.pickup?.lat ?: 0.0)
+                    putDouble("pickupLng", ride.pickup?.lng ?: 0.0)
+
+                    // Destination Location
+                    putString("destinationAddress", ride.destination?.address ?: "")
+                    putDouble("destinationLat", ride.destination?.lat ?: 0.0)
+                    putDouble("destinationLng", ride.destination?.lng ?: 0.0)
+
+                    putString("rideType", ride.rideType)
+                    putDouble("distance", ride.distance)
+                    putInt("duration", ride.duration)
+                    putDouble("fare", ride.fare)
+
+                    putString("status", ride.status)
+                    putString("paymentMethod", ride.paymentMethod)
+                    putString("paymentStatus", ride.paymentStatus)
+                }
+                findNavController().navigate(R.id.action_ride_to_processing, bundle)
+            }
+        }
+
+        // ✅ Observe error
+        viewModel.errorMessage.observe(viewLifecycleOwner) { error ->
+            error?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
+                viewModel.clearError()
+            }
+        }
+
+        // ✅ Observe loading
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            btnBookNow.isEnabled = !isLoading
+            btnBookNow.text = if (isLoading) "Booking..." else "Book Now"
+        }
     }
 
     private fun initViews(view: View) {
@@ -124,9 +174,20 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         btnBookNow.setOnClickListener {
             val pickup = etPickup.text.toString()
             val destination = etDestination.text.toString()
+
             if (pickup.isNotEmpty() && destination.isNotEmpty()) {
-                viewModel.bookRide(pickup, destination, "Mini")
-                Toast.makeText(requireContext(), "✅ Ride Booked!", Toast.LENGTH_SHORT).show()
+                viewModel.bookRide(
+                    pickupAddress = pickup,
+                    pickupLat = pickupLatLng?.latitude ?: 0.0,
+                    pickupLng = pickupLatLng?.longitude ?: 0.0,
+                    destinationAddress = destination,
+                    destinationLat = destinationLatLng?.latitude ?: 0.0,
+                    destinationLng = destinationLatLng?.longitude ?: 0.0,
+                    rideType = "Mini",
+                    distance = distanceValue,
+                    duration = durationValue,
+                    fare = fareValue
+                )
             } else {
                 Toast.makeText(requireContext(), "Please select pickup and destination", Toast.LENGTH_SHORT).show()
             }
@@ -388,7 +449,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     // ============================================================
 
     private fun calculateRouteAndFare(origin: LatLng, destination: LatLng) {
-        // Show loading state
         tvDistance.text = "Calculating..."
         tvDuration.text = "Please wait..."
         tvFare.text = "₹ ---"
@@ -398,7 +458,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         val origins = "${origin.latitude},${origin.longitude}"
         val destinations = "${destination.latitude},${destination.longitude}"
 
-        // Create Retrofit instance
         val retrofit = Retrofit.Builder()
             .baseUrl("https://maps.googleapis.com/maps/api/")
             .addConverterFactory(GsonConverterFactory.create())
@@ -418,18 +477,16 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                             val element = data.rows?.firstOrNull()?.elements?.firstOrNull()
                             if (element?.status == "OK") {
                                 val distanceInMeters = element.distance?.value ?: 0
-                                val distanceInKm = distanceInMeters / 1000.0
+                                distanceValue = distanceInMeters / 1000.0
                                 val durationInSeconds = element.duration?.value ?: 0
-                                val durationInMinutes = durationInSeconds / 60
+                                durationValue = durationInSeconds / 60
+                                fareValue = (distanceValue * PER_KM_RATE) + BASE_FARE
 
-                                val fare = (distanceInKm * PER_KM_RATE) + BASE_FARE
-
-                                tvDistance.text = "Distance: %.1f km".format(distanceInKm)
-                                tvDuration.text = "Time: %d min".format(durationInMinutes)
-                                tvFare.text = "Fare: ₹ %.0f".format(fare)
+                                tvDistance.text = "Distance: %.1f km".format(distanceValue)
+                                tvDuration.text = "Time: %d min".format(durationValue)
+                                tvFare.text = "Fare: ₹ %.0f".format(fareValue)
                                 btnBookNow.isEnabled = true
 
-                                // Draw route on map
                                 drawRoute(origin, destination)
                             } else {
                                 showCalculationError()

@@ -1,9 +1,11 @@
 package com.gr.kakarwairider.ui
 
 import android.Manifest
+import android.content.ContentValues.TAG
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,8 +19,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.card.MaterialCardView
+import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.MainActivity2
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.utils.FirestoreTest
 import com.gr.kakarwairider.utils.ServiceAreaChecker
 import com.gr.kakarwairider.viewmodel.AuthViewModel
 
@@ -49,6 +53,10 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+
+
+
 
         // Initialize Views
         tvWelcome = view.findViewById(R.id.tvWelcome)

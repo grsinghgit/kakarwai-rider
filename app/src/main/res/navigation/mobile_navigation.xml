@@ -17,5 +17,21 @@
         android:id="@+id/profileFragment"
         android:name="com.gr.kakarwairider.ProfileFragment"
         android:label="Profile" />
+    <!-- Processing Fragment -->
+    <fragment
+        android:id="@+id/rideProcessingFragment"
+        android:name="com.gr.kakarwairider.ui.RideProcessingFragment"
+        android:label="Processing Ride" />
+
+    <!-- Tracking Fragment -->
+    <fragment
+        android:id="@+id/rideTrackingFragment"
+        android:name="com.gr.kakarwairider.ui.RideTrackingFragment"
+        android:label="Ride Tracking" />
+
+    <!-- Actions -->
+    <action
+        android:id="@+id/action_processing_to_tracking"
+        app:destination="@id/rideTrackingFragment" />
 
 </navigation>
