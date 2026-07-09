@@ -98,6 +98,15 @@
         android:textColor="@color/grey"
         android:gravity="center"
         android:visibility="gone" />
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnAddDriver"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:text="➕ Add New Driver"
+        app:cornerRadius="8dp"
+        android:textSize="14sp"
+        android:layout_marginTop="4dp"
+        app:backgroundTint="@color/blue" />
     <!-- Online Drivers Button -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnOnlineDrivers"

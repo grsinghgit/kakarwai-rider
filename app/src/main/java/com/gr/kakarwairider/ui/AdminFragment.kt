@@ -72,6 +72,13 @@ class AdminFragment : Fragment() {
             loadOnlineDrivers()
         }
 
+        //form
+        // ✅ In onCreateView
+        val btnAddDriver: MaterialButton = view.findViewById(R.id.btnAddDriver)
+        btnAddDriver.setOnClickListener {
+            findNavController().navigate(R.id.driverFormFragment)
+        }
+
         // Logout
         btnLogout.setOnClickListener {
             val sharedPref = requireActivity().getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)

@@ -92,4 +92,9 @@
 
     </fragment>
 
+    <fragment
+        android:id="@+id/driverFormFragment"
+        android:name="com.gr.kakarwairider.ui.DriverFormFragment"
+        android:label="Add Driver" />
+
 </navigation>
