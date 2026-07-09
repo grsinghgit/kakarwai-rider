@@ -59,7 +59,11 @@ class DriverDashboardFragment : Fragment() {
         val sharedPref = requireActivity().getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
         driverId = sharedPref.getString("driverId", null)
 
-        if (driverId == null) {
+        android.util.Log.d("DriverDashboard", "📌 SharedPref driverId: $driverId")
+
+        // ✅ Check null using local variable
+        val id = driverId
+        if (id == null || id.isEmpty()) {
             Toast.makeText(requireContext(), "Please login again", Toast.LENGTH_SHORT).show()
             findNavController().popBackStack()
             return
@@ -70,10 +74,6 @@ class DriverDashboardFragment : Fragment() {
         listenForRides()
 
         btnGoOnline.setOnClickListener {
-            if (!hasLocationPermission()) {
-                requestLocationPermission()
-                return@setOnClickListener
-            }
             toggleOnlineStatus()
         }
 
@@ -100,21 +100,25 @@ class DriverDashboardFragment : Fragment() {
     }
 
     private fun listenForRides() {
-        driverId?.let { id ->
-            db.collection("rides")
-                .whereEqualTo("driverId", id)
-                .whereIn("status", listOf("DRIVER_ASSIGNED", "ACCEPTED", "STARTED"))
-                .addSnapshotListener { snapshots, error ->
-                    if (error != null || snapshots == null) return@addSnapshotListener
-
-                    rideList.clear()
-                    for (doc in snapshots) {
-                        val ride = doc.toObject(RideModel::class.java)
-                        rideList.add(ride)
-                    }
-                    adapter.notifyDataSetChanged()
-                }
+        // ✅ Local variable for smart cast
+        val id = driverId
+        if (id == null || id.isEmpty()) {
+            return
         }
+
+        db.collection("rides")
+            .whereEqualTo("driverId", id)
+            .whereIn("status", listOf("DRIVER_ASSIGNED", "ACCEPTED", "STARTED"))
+            .addSnapshotListener { snapshots, error ->
+                if (error != null || snapshots == null) return@addSnapshotListener
+
+                rideList.clear()
+                for (doc in snapshots) {
+                    val ride = doc.toObject(RideModel::class.java)
+                    rideList.add(ride)
+                }
+                adapter.notifyDataSetChanged()
+            }
     }
 
     private fun updateRideStatus(rideId: String, status: String) {
@@ -167,15 +171,33 @@ class DriverDashboardFragment : Fragment() {
     }
 
     private fun toggleOnlineStatus() {
+        android.util.Log.d("DriverDashboard", "🔄 toggleOnlineStatus called, isOnline: $isOnline")
+
         if (isOnline) {
-            // Go Offline
             requireActivity().stopService(Intent(requireContext(), DriverLocationService::class.java))
             updateUIStatus(false)
             updateDriverStatus(false)
             Toast.makeText(requireContext(), "🔴 You are offline", Toast.LENGTH_SHORT).show()
         } else {
-            // Go Online
+            // ✅ Local variable for smart cast
+            val driverIdLocal = driverId
+            android.util.Log.d("DriverDashboard", "📌 driverIdLocal: $driverIdLocal")
+
+            if (driverIdLocal == null || driverIdLocal.isEmpty()) {
+                android.util.Log.e("DriverDashboard", "❌ driverId is null!")
+                Toast.makeText(requireContext(), "Error: Driver ID not found. Please login again.", Toast.LENGTH_LONG).show()
+                return
+            }
+
+            if (!hasLocationPermission()) {
+                requestLocationPermission()
+                return
+            }
+
             val intent = Intent(requireContext(), DriverLocationService::class.java)
+            intent.putExtra("driverId", driverIdLocal)
+            android.util.Log.d("DriverDashboard", "📤 Starting service with driverId: $driverIdLocal")
+
             ContextCompat.startForegroundService(requireContext(), intent)
             updateUIStatus(true)
             updateDriverStatus(true)
@@ -184,17 +206,21 @@ class DriverDashboardFragment : Fragment() {
     }
 
     private fun updateDriverStatus(online: Boolean) {
-        driverId?.let { id ->
-            val status = if (online) "ONLINE" else "OFFLINE"
-            db.collection("driver_locations").document(id)
-                .update(
-                    mapOf(
-                        "status" to status,
-                        "isAvailable" to online,
-                        "updatedAt" to com.google.firebase.Timestamp.now()
-                    )
-                )
+        // ✅ Local variable for smart cast
+        val id = driverId
+        if (id == null || id.isEmpty()) {
+            return
         }
+
+        val status = if (online) "ONLINE" else "OFFLINE"
+        db.collection("driver_locations").document(id)
+            .update(
+                mapOf(
+                    "status" to status,
+                    "isAvailable" to online,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
     }
 
     private fun updateUIStatus(online: Boolean) {
@@ -213,27 +239,29 @@ class DriverDashboardFragment : Fragment() {
     }
 
     private fun loadDriverDetails() {
-        driverId?.let { id ->
-            db.collection("drivers").document(id)
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        val name = document.getString("name") ?: "Driver"
-                        tvDriverName.text = "Welcome, $name"
-                    }
-                }
+        // ✅ Local variable for smart cast
+        val id = driverId
+        if (id == null || id.isEmpty()) {
+            return
         }
 
-        driverId?.let { id ->
-            db.collection("driver_locations").document(id)
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        val status = document.getString("status") ?: "OFFLINE"
-                        updateUIStatus(status == "ONLINE")
-                    }
+        db.collection("drivers").document(id)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val name = document.getString("name") ?: "Driver"
+                    tvDriverName.text = "Welcome, $name"
                 }
-        }
+            }
+
+        db.collection("driver_locations").document(id)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val status = document.getString("status") ?: "OFFLINE"
+                    updateUIStatus(status == "ONLINE")
+                }
+            }
     }
 
     override fun onDestroy() {
