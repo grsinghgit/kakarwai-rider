@@ -56,7 +56,31 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
         bottomNav.setupWithNavController(navController)
 
+        // ✅ Update UI based on login status
         updateUIBasedOnLoginStatus()
+
+        // ✅ Set bottom navigation item selected listener for admin login check
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.adminFragment -> {
+                    // ✅ Check if admin already logged in
+                    val sharedPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
+                    val isAdminLoggedIn = sharedPref.getBoolean("isAdminLoggedIn", false)
+
+                    if (isAdminLoggedIn) {
+                        navController.navigate(R.id.adminFragment)
+                    } else {
+                        navController.navigate(R.id.adminLoginFragment)
+                    }
+                    true
+                }
+                else -> {
+                    // ✅ Default navigation for other items
+                    navController.navigate(item.itemId)
+                    true
+                }
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -73,6 +97,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun logout() {
+        // ✅ Clear admin login state on logout
+        val sharedPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
+        sharedPref.edit().clear().apply()
+
         FirebaseAuth.getInstance().signOut()
         updateUIBasedOnLoginStatus()
         navController.navigate(R.id.action_home_to_login)

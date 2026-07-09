@@ -33,6 +33,17 @@
         android:id="@+id/adminFragment"
         android:name="com.gr.kakarwairider.ui.AdminFragment"
         android:label="Admin" />
+    <!-- Admin Login Fragment -->
+    <fragment
+        android:id="@+id/adminLoginFragment"
+        android:name="com.gr.kakarwairider.ui.AdminLoginFragment"
+        android:label="Admin Login" />
+
+    <!-- Admin Fragment -->
+    <fragment
+        android:id="@+id/adminFragment"
+        android:name="com.gr.kakarwairider.ui.AdminFragment"
+        android:label="Admin Dashboard" />
 
     <!-- Actions -->
     <action
@@ -46,5 +57,39 @@
         app:destination="@id/loginFragment"
         app:popUpTo="@id/homeFragment"
         app:popUpToInclusive="true" />
+    <!-- Admin Login Fragment -->
+    <fragment
+        android:id="@+id/adminLoginFragment"
+        android:name="com.gr.kakarwairider.ui.AdminLoginFragment"
+        android:label="Admin Login">
+
+        <!-- ✅ Actions -->
+        <action
+            android:id="@+id/action_admin_login_to_admin"
+            app:destination="@id/adminFragment"
+            app:popUpTo="@id/adminLoginFragment"
+            app:popUpToInclusive="true" />
+
+        <action
+            android:id="@+id/action_admin_login_to_home"
+            app:destination="@id/homeFragment"
+            app:popUpTo="@id/adminLoginFragment"
+            app:popUpToInclusive="true" />
+
+    </fragment>
+
+    <!-- Admin Fragment -->
+    <fragment
+        android:id="@+id/adminFragment"
+        android:name="com.gr.kakarwairider.ui.AdminFragment"
+        android:label="Admin Dashboard">
+
+        <action
+            android:id="@+id/action_admin_to_login"
+            app:destination="@id/adminLoginFragment"
+            app:popUpTo="@id/adminFragment"
+            app:popUpToInclusive="true" />
+
+    </fragment>
 
 </navigation>
