@@ -7,8 +7,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
@@ -49,7 +49,7 @@ class AdminFragment : Fragment() {
         setupRecyclerView()
         loadRides(currentFilter)
 
-        // ✅ Filter: Pending
+        // Filter: Pending
         btnPending.setOnClickListener {
             currentFilter = "PENDING"
             loadRides(currentFilter)
@@ -57,7 +57,7 @@ class AdminFragment : Fragment() {
             btnAll.setBackgroundColor(0x00000000)
         }
 
-        // ✅ Filter: All
+        // Filter: All
         btnAll.setOnClickListener {
             currentFilter = "ALL"
             loadRides(currentFilter)
@@ -65,16 +65,12 @@ class AdminFragment : Fragment() {
             btnPending.setBackgroundColor(0x00000000)
         }
 
-        // ✅ Logout
+        // Logout
         btnLogout.setOnClickListener {
             val sharedPref = requireActivity().getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
             sharedPref.edit().clear().apply()
             Toast.makeText(requireContext(), "Logged out", Toast.LENGTH_SHORT).show()
-
-            // ✅ Go back to admin login
-            activity?.supportFragmentManager?.beginTransaction()
-                ?.replace(R.id.fragment_container, AdminLoginFragment())
-                ?.commit()
+            findNavController().navigate(R.id.action_admin_to_login)
         }
     }
 
@@ -109,12 +105,16 @@ class AdminFragment : Fragment() {
             }
     }
 
+    // ✅ REFRESH FUNCTION - YAHAN ADD KAREIN
+    fun refreshRides() {
+        loadRides(currentFilter)
+    }
+
     // ============================================================
     // ✅ SHOW ASSIGN DRIVER DIALOG
     // ============================================================
 
     private fun showAssignDriverDialog(ride: RideModel) {
-        // ✅ Fetch available drivers from Firestore
         db.collection("drivers")
             .whereEqualTo("isActive", true)
             .whereEqualTo("isAvailable", true)
@@ -135,7 +135,7 @@ class AdminFragment : Fragment() {
                 }
 
                 val driverArray = driverNames.toTypedArray()
-                AlertDialog.Builder(requireContext())
+                androidx.appcompat.app.AlertDialog.Builder(requireContext())
                     .setTitle("Assign Driver")
                     .setMessage("Select a driver for Ride #${ride.rideId.takeLast(8)}")
                     .setItems(driverArray) { _, which ->
@@ -163,7 +163,7 @@ class AdminFragment : Fragment() {
             )
             .addOnSuccessListener {
                 Toast.makeText(requireContext(), "✅ Driver $driverName assigned!", Toast.LENGTH_LONG).show()
-                loadRides(currentFilter)
+                refreshRides()  // ✅ Refresh list
             }
             .addOnFailureListener { e ->
                 Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()

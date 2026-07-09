@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
+import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.FirebaseFirestore
@@ -140,7 +141,7 @@ class AdminRideAdapter(
                 }
             }
 
-            // ✅ Cancel Ride Button
+            // Cancel Ride Button
             if (ride.status == "PENDING") {
                 btnCancelRide.visibility = View.VISIBLE
                 btnCancelRide.setOnClickListener {
@@ -161,20 +162,18 @@ class AdminRideAdapter(
             }
         }
 
-        // ✅ Cancel with Reason Dialog - EditText + Submit Button
+        // ✅ Cancel with Reason Dialog
         private fun showCancelReasonDialog(ride: RideModel) {
             val builder = AlertDialog.Builder(itemView.context)
             builder.setTitle("❌ Cancel Ride")
             builder.setMessage("Enter reason for cancelling Ride #${ride.rideId.takeLast(8)}")
 
-            // ✅ EditText for reason
             val input = EditText(itemView.context)
             input.hint = "Enter cancel reason..."
             input.setSingleLine(false)
             input.setLines(3)
             builder.setView(input)
 
-            // ✅ Submit Button
             builder.setPositiveButton("✅ Submit") { dialog, _ ->
                 val reason = input.text.toString().trim()
                 if (reason.isEmpty()) {
@@ -192,6 +191,7 @@ class AdminRideAdapter(
             builder.show()
         }
 
+        // ✅ Cancel Ride - Fixed Navigation
         private fun cancelRide(ride: RideModel, reason: String) {
             db.collection("rides").document(ride.rideId)
                 .update(
@@ -204,11 +204,17 @@ class AdminRideAdapter(
                 )
                 .addOnSuccessListener {
                     Toast.makeText(itemView.context, "✅ Ride cancelled! Reason: $reason", Toast.LENGTH_LONG).show()
-                    // ✅ Refresh fragment
-                    (itemView.context as? androidx.fragment.app.FragmentActivity)?.supportFragmentManager
-                        ?.beginTransaction()
-                        ?.replace(R.id.fragment_container, AdminFragment())
-                        ?.commit()
+
+                    // ✅ SAFE NAVIGATION - Refresh AdminFragment
+                    try {
+                        val activity = itemView.context as? FragmentActivity
+                        activity?.supportFragmentManager?.beginTransaction()
+                            ?.replace(R.id.nav_host_fragment, AdminFragment())
+                            ?.commit()
+                    } catch (e: Exception) {
+                        // Fallback: Just refresh the adapter data
+                        Toast.makeText(itemView.context, "Refresh the page to see updates", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(itemView.context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
