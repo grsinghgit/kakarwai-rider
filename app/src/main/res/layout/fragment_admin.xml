@@ -31,13 +31,12 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Manage Pending Rides"
+                android:text="Manage Rides &amp; Drivers"
                 android:textSize="14sp"
                 android:textColor="@color/grey" />
 
         </LinearLayout>
 
-        <!-- ✅ Logout Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLogout"
             android:layout_width="wrap_content"
@@ -49,13 +48,21 @@
 
     </LinearLayout>
 
-    <!-- Filter Buttons -->
+    <!-- ✅ Map for Live Drivers -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/mapFragment"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Buttons Row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="16dp">
+        android:layout_marginBottom="8dp">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPending"
@@ -79,6 +86,28 @@
             android:textSize="12sp"
             style="@style/Widget.Material3.Button.OutlinedButton" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnOnlineDrivers"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="🟢 Online"
+            app:cornerRadius="8dp"
+            android:textSize="12sp"
+            android:backgroundTint="@color/green" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAddDriver"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="➕ Add"
+            app:cornerRadius="8dp"
+            android:textSize="12sp"
+            android:backgroundTint="@color/blue" />
+
     </LinearLayout>
 
     <!-- RecyclerView -->
@@ -98,24 +127,5 @@
         android:textColor="@color/grey"
         android:gravity="center"
         android:visibility="gone" />
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnAddDriver"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:text="➕ Add New Driver"
-        app:cornerRadius="8dp"
-        android:textSize="14sp"
-        android:layout_marginTop="4dp"
-        app:backgroundTint="@color/blue" />
-    <!-- Online Drivers Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnOnlineDrivers"
-        android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:layout_marginTop="8dp"
-        android:text="🟢 Online Drivers"
-        app:cornerRadius="8dp"
-        android:textSize="14sp"
-        app:backgroundTint="@color/blue" />
 
 </LinearLayout>
