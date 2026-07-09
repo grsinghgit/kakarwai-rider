@@ -117,8 +117,6 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
             mMap.isMyLocationEnabled = true
         }
 
-        // ✅ Don't set default location here - will be set by driver location
-        // If no driver online, keep default Delhi
         val defaultLocation = LatLng(28.6139, 77.2090)
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 12f))
     }
@@ -135,7 +133,6 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
                     return@addSnapshotListener
                 }
 
-                // ✅ Remove old markers
                 driverMarkers.values.forEach { it.remove() }
                 driverMarkers.clear()
 
@@ -158,14 +155,12 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
                         val latLng = LatLng(location.latitude, location.longitude)
                         addDriverMarker(driverId, driverName, latLng)
 
-                        // ✅ Save first location to center map
                         if (firstLocation == null) {
                             firstLocation = latLng
                         }
                     }
                 }
 
-                // ✅ Move camera to driver location
                 firstLocation?.let {
                     mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it, 14f))
                 }
@@ -232,7 +227,6 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
     private fun loadOnlineDrivers() {
         db.collection("driver_locations")
             .whereEqualTo("status", "ONLINE")
-            .whereEqualTo("isAvailable", true)
             .get()
             .addOnSuccessListener { documents ->
                 if (documents.isEmpty()) {
@@ -293,7 +287,6 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
     private fun showAssignDriverDialog(ride: RideModel) {
         db.collection("driver_locations")
             .whereEqualTo("status", "ONLINE")
-            .whereEqualTo("isAvailable", true)
             .get()
             .addOnSuccessListener { documents ->
                 if (documents.isEmpty()) {
@@ -333,22 +326,38 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
         driverIds: List<String>,
         driverDistances: List<String>
     ) {
-        val displayList = driverNames.mapIndexed { index, name ->
-            "$name\n   📍 ${driverDistances.getOrNull(index) ?: "Unknown"}"
-        }.toTypedArray()
+        android.util.Log.d("AdminFragment", "🔔 showAssignDriverListDialog with ${driverNames.size} drivers")
 
-        androidx.appcompat.app.AlertDialog.Builder(requireContext())
-            .setTitle("Assign Driver")
-            .setMessage("Select a driver for Ride #${ride.rideId.takeLast(8)}")
-            .setItems(displayList) { _, which ->
-                val selectedDriverName = driverNames[which]
-                val selectedDriverId = driverIds[which]
-                assignDriver(ride.rideId, selectedDriverName, selectedDriverId)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+        if (driverNames.isEmpty()) {
+            Toast.makeText(requireContext(), "No drivers available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // ✅ Use ListView instead of setItems()
+        val listView = android.widget.ListView(requireContext())
+        val arrayAdapter = android.widget.ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_list_item_1,
+            driverNames
+        )
+        listView.adapter = arrayAdapter
+
+        val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+        builder.setTitle("Select Driver for Ride #${ride.rideId.takeLast(8)}")
+        builder.setView(listView)
+        builder.setNegativeButton("Cancel", null)
+
+        val dialog = builder.create()
+        dialog.show()
+
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val selectedDriverName = driverNames[position]
+            val selectedDriverId = driverIds[position]
+            android.util.Log.d("AdminFragment", "✅ Selected: $selectedDriverName")
+            dialog.dismiss()
+            assignDriver(ride.rideId, selectedDriverName, selectedDriverId)
+        }
     }
-
     private fun assignDriver(rideId: String, driverName: String, driverId: String) {
         db.collection("rides").document(rideId)
             .update(
