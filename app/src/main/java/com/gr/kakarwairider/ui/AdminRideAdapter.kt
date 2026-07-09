@@ -1,11 +1,12 @@
 package com.gr.kakarwairider.ui
 
-import android.content.Context
+import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
@@ -28,7 +29,6 @@ class AdminRideAdapter(
     private var areaCenterLng = 0.0
 
     init {
-        // ✅ Fetch area center
         db.collection("areas").get()
             .addOnSuccessListener { documents ->
                 for (doc in documents) {
@@ -54,7 +54,6 @@ class AdminRideAdapter(
 
     override fun getItemCount(): Int = rides.size
 
-    // ✅ Distance Calculator
     private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
         val R = 6371.0
         val dLat = Math.toRadians(lat2 - lat1)
@@ -79,6 +78,7 @@ class AdminRideAdapter(
         private val btnAssign: MaterialButton = itemView.findViewById(R.id.btnAssignDriver)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCall)
         private val btnRoute: MaterialButton = itemView.findViewById(R.id.btnRoute)
+        private val btnCancelRide: MaterialButton = itemView.findViewById(R.id.btnCancelRide)
 
         fun bind(ride: RideModel) {
             tvRideId.text = "Ride #${ride.rideId.takeLast(8)}"
@@ -89,7 +89,6 @@ class AdminRideAdapter(
             tvFare.text = "💰 ₹${ride.totalFare.toInt()}"
             tvVehicle.text = "${ride.vehicleIcon} ${ride.vehicleName}"
 
-            // Status Color
             val statusColor = when (ride.status) {
                 "PENDING" -> itemView.context.getColor(R.color.orange)
                 "DRIVER_ASSIGNED" -> itemView.context.getColor(R.color.green)
@@ -97,7 +96,7 @@ class AdminRideAdapter(
             }
             tvStatus.setTextColor(statusColor)
 
-            // ✅ Calculate Distances
+            // Distances
             val pickupLat = ride.pickup?.lat ?: 0.0
             val pickupLng = ride.pickup?.lng ?: 0.0
             val destLat = ride.destination?.lat ?: 0.0
@@ -109,7 +108,7 @@ class AdminRideAdapter(
             tvDistanceCenterToPickup.text = "📏 Center→Pickup: %.2f km".format(distCenterToPickup)
             tvDistancePickupToDest.text = "📏 Pickup→Dest: %.2f km".format(distPickupToDest)
 
-            // ✅ Call Button
+            // Call Button
             btnCall.setOnClickListener {
                 val phoneNumber = ride.userPhone
                 if (phoneNumber.isNotEmpty()) {
@@ -122,12 +121,36 @@ class AdminRideAdapter(
                 }
             }
 
-            // ✅ Google Maps Route Button
+            // Route Button
             btnRoute.setOnClickListener {
-                openGoogleMapsRoute(ride)
+                val centerLat = areaCenterLat
+                val centerLng = areaCenterLng
+                val url = "https://www.google.com/maps/dir/$centerLat,$centerLng/${ride.pickup?.lat},${ride.pickup?.lng}/${ride.destination?.lat},${ride.destination?.lng}"
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    intent.setPackage("com.google.android.apps.maps")
+                    if (intent.resolveActivity(itemView.context.packageManager) != null) {
+                        itemView.context.startActivity(intent)
+                    } else {
+                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        itemView.context.startActivity(browserIntent)
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(itemView.context, "Error opening maps: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
 
-            // ✅ Assign Driver Button
+            // ✅ Cancel Ride Button
+            if (ride.status == "PENDING") {
+                btnCancelRide.visibility = View.VISIBLE
+                btnCancelRide.setOnClickListener {
+                    showCancelReasonDialog(ride)
+                }
+            } else {
+                btnCancelRide.visibility = View.GONE
+            }
+
+            // Assign Driver Button
             if (ride.status != "PENDING") {
                 btnAssign.visibility = View.GONE
             } else {
@@ -138,30 +161,58 @@ class AdminRideAdapter(
             }
         }
 
-        private fun openGoogleMapsRoute(ride: RideModel) {
-            val centerLat = areaCenterLat
-            val centerLng = areaCenterLng
-            val pickupLat = ride.pickup?.lat ?: 0.0
-            val pickupLng = ride.pickup?.lng ?: 0.0
-            val destLat = ride.destination?.lat ?: 0.0
-            val destLng = ride.destination?.lng ?: 0.0
+        // ✅ Cancel with Reason Dialog - EditText + Submit Button
+        private fun showCancelReasonDialog(ride: RideModel) {
+            val builder = AlertDialog.Builder(itemView.context)
+            builder.setTitle("❌ Cancel Ride")
+            builder.setMessage("Enter reason for cancelling Ride #${ride.rideId.takeLast(8)}")
 
-            // ✅ Google Maps URL with multiple waypoints
-            val url = "https://www.google.com/maps/dir/$centerLat,$centerLng/$pickupLat,$pickupLng/$destLat,$destLng"
+            // ✅ EditText for reason
+            val input = EditText(itemView.context)
+            input.hint = "Enter cancel reason..."
+            input.setSingleLine(false)
+            input.setLines(3)
+            builder.setView(input)
 
-            try {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                intent.setPackage("com.google.android.apps.maps")
-                if (intent.resolveActivity(itemView.context.packageManager) != null) {
-                    itemView.context.startActivity(intent)
-                } else {
-                    // Fallback to browser
-                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                    itemView.context.startActivity(browserIntent)
+            // ✅ Submit Button
+            builder.setPositiveButton("✅ Submit") { dialog, _ ->
+                val reason = input.text.toString().trim()
+                if (reason.isEmpty()) {
+                    Toast.makeText(itemView.context, "Please enter a reason", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
                 }
-            } catch (e: Exception) {
-                Toast.makeText(itemView.context, "Error opening maps: ${e.message}", Toast.LENGTH_SHORT).show()
+                cancelRide(ride, reason)
+                dialog.dismiss()
             }
+
+            builder.setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+
+            builder.show()
+        }
+
+        private fun cancelRide(ride: RideModel, reason: String) {
+            db.collection("rides").document(ride.rideId)
+                .update(
+                    mapOf(
+                        "status" to "CANCELLED",
+                        "cancelReason" to reason,
+                        "cancelledBy" to "admin",
+                        "updatedAt" to com.google.firebase.Timestamp.now()
+                    )
+                )
+                .addOnSuccessListener {
+                    Toast.makeText(itemView.context, "✅ Ride cancelled! Reason: $reason", Toast.LENGTH_LONG).show()
+                    // ✅ Refresh fragment
+                    (itemView.context as? androidx.fragment.app.FragmentActivity)?.supportFragmentManager
+                        ?.beginTransaction()
+                        ?.replace(R.id.fragment_container, AdminFragment())
+                        ?.commit()
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(itemView.context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
         }
     }
 }

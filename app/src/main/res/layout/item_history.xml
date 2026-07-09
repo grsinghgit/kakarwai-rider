@@ -77,6 +77,15 @@
                 android:text="12 Jan 2026"
                 android:textSize="12sp"
                 android:textColor="@color/grey" />
+            <!-- Cancel Reason (Only if cancelled) -->
+            <TextView
+                android:id="@+id/tvCancelReason"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reason: Driver not available"
+                android:textSize="12sp"
+                android:textColor="@color/red"
+                android:visibility="gone" />
 
         </LinearLayout>
 

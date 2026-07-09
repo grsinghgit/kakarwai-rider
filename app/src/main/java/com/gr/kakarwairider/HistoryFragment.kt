@@ -62,7 +62,6 @@ class HistoryFragment : Fragment() {
             return
         }
 
-        // ✅ Query with more logging
         db.collection("rides")
             .whereEqualTo("userId", userId)
             .whereIn("status", listOf("COMPLETED", "CANCELLED", "EXPIRED"))
@@ -125,6 +124,7 @@ class HistoryFragment : Fragment() {
             private val tvFare: TextView = itemView.findViewById(R.id.tvFare)
             private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
             private val tvDate: TextView = itemView.findViewById(R.id.tvDate)
+            private val tvCancelReason: TextView = itemView.findViewById(R.id.tvCancelReason)  // ✅ Add
 
             fun bind(ride: RideModel) {
                 tvRideId.text = "Ride #${ride.rideId.takeLast(8)}"
@@ -146,6 +146,14 @@ class HistoryFragment : Fragment() {
                     else -> android.R.color.black
                 }
                 tvStatus.setTextColor(itemView.context.getColor(statusColor))
+
+                // ✅ Show Cancel Reason
+                if (ride.status == "CANCELLED" && !ride.cancelReason.isNullOrEmpty()) {
+                    tvCancelReason.text = "❌ Reason: ${ride.cancelReason}"
+                    tvCancelReason.visibility = View.VISIBLE
+                } else {
+                    tvCancelReason.visibility = View.GONE
+                }
 
                 ride.updatedAt?.let {
                     tvDate.text = dateFormat.format(it.toDate())

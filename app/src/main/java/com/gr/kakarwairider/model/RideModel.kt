@@ -39,6 +39,8 @@ data class RideModel(
 
     val paymentMethod: String = "CASH",
     val paymentStatus: String = "PENDING",
+    val cancelReason: String? = null,  // ✅ Add this
+    val cancelledBy: String? = null,   // ✅ Add this (admin/user)
 
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null,
