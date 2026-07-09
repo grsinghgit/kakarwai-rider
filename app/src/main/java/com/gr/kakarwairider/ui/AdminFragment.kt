@@ -24,6 +24,7 @@ class AdminFragment : Fragment() {
     private lateinit var btnPending: MaterialButton
     private lateinit var btnAll: MaterialButton
     private lateinit var btnLogout: MaterialButton
+    private lateinit var btnOnlineDrivers: MaterialButton
     private lateinit var adapter: AdminRideAdapter
     private val db = FirebaseFirestore.getInstance()
     private val rideList = mutableListOf<RideModel>()
@@ -45,6 +46,7 @@ class AdminFragment : Fragment() {
         btnPending = view.findViewById(R.id.btnPending)
         btnAll = view.findViewById(R.id.btnAll)
         btnLogout = view.findViewById(R.id.btnLogout)
+        btnOnlineDrivers = view.findViewById(R.id.btnOnlineDrivers)
 
         setupRecyclerView()
         loadRides(currentFilter)
@@ -63,6 +65,11 @@ class AdminFragment : Fragment() {
             loadRides(currentFilter)
             btnAll.setBackgroundColor(resources.getColor(R.color.primary))
             btnPending.setBackgroundColor(0x00000000)
+        }
+
+        // ✅ Online Drivers Button
+        btnOnlineDrivers.setOnClickListener {
+            loadOnlineDrivers()
         }
 
         // Logout
@@ -105,9 +112,110 @@ class AdminFragment : Fragment() {
             }
     }
 
-    // ✅ REFRESH FUNCTION - YAHAN ADD KAREIN
     fun refreshRides() {
         loadRides(currentFilter)
+    }
+
+    // ============================================================
+    // ✅ LOAD ONLINE DRIVERS
+    // ============================================================
+
+    private fun loadOnlineDrivers() {
+        android.util.Log.d("AdminFragment", "🔍 Loading online drivers...")
+
+        db.collection("driver_locations")
+            .whereEqualTo("status", "ONLINE")
+            .whereEqualTo("isAvailable", true)
+            .get()
+            .addOnSuccessListener { documents ->
+                android.util.Log.d("AdminFragment", "📄 Found ${documents.size()} drivers")
+
+                if (documents.isEmpty()) {
+                    Toast.makeText(requireContext(), "No online drivers available", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+
+                val driverNames = mutableListOf<String>()
+                val driverIds = mutableListOf<String>()
+                val driverDistances = mutableListOf<String>()
+
+                for (doc in documents) {
+                    val name = doc.getString("driverName") ?: "Unknown Driver"
+                    val id = doc.id
+                    val location = doc.getGeoPoint("currentLocation")
+
+                    android.util.Log.d("AdminFragment", "👤 Driver: $name, ID: $id")
+
+                    driverNames.add("🚗 $name")
+                    driverIds.add(id)
+
+                    if (location != null) {
+                        driverDistances.add("📍 ${location.latitude}, ${location.longitude}")
+                    } else {
+                        driverDistances.add("📍 Location unknown")
+                    }
+                }
+
+                android.util.Log.d("AdminFragment", "📊 DriverNames: $driverNames")
+
+                // ✅ Call dialog directly
+                try {
+                    showDriverListDialog(driverNames, driverIds, driverDistances)
+                } catch (e: Exception) {
+                    android.util.Log.e("AdminFragment", "❌ Error showing dialog: ${e.message}")
+                    Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener { e ->
+                android.util.Log.e("AdminFragment", "❌ Error: ${e.message}")
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    // ============================================================
+    // ✅ SHOW DRIVER LIST DIALOG
+    // ============================================================
+
+    private fun showDriverListDialog(
+        driverNames: List<String>,
+        driverIds: List<String>,
+        driverDistances: List<String>
+    ) {
+        android.util.Log.d("AdminFragment", "🔔 showDriverListDialog STARTED with ${driverNames.size} drivers")
+
+        if (driverNames.isEmpty()) {
+            Toast.makeText(requireContext(), "No drivers to show", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // ✅ Create a simple string array with just names
+        val displayList = driverNames.toTypedArray()
+
+        try {
+            val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            builder.setTitle("🟢 Online Drivers")
+            builder.setItems(displayList) { _, which ->
+                val selectedDriverName = driverNames[which]
+                val selectedDriverId = driverIds[which]
+
+                android.util.Log.d("AdminFragment", "✅ Selected: $selectedDriverName, ID: $selectedDriverId")
+
+                Toast.makeText(
+                    requireContext(),
+                    "Selected: $selectedDriverName\nID: $selectedDriverId",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            builder.setNegativeButton("Close", null)
+
+            val dialog = builder.create()
+            dialog.show()
+            android.util.Log.d("AdminFragment", "✅ Dialog shown successfully!")
+
+        } catch (e: Exception) {
+            android.util.Log.e("AdminFragment", "❌ Dialog error: ${e.message}", e)
+            Toast.makeText(requireContext(), "Error showing dialog: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ============================================================
@@ -115,39 +223,50 @@ class AdminFragment : Fragment() {
     // ============================================================
 
     private fun showAssignDriverDialog(ride: RideModel) {
-        db.collection("drivers")
-            .whereEqualTo("isActive", true)
+        android.util.Log.d("AdminFragment", "🔍 Assign Driver for ride: ${ride.rideId}")
+
+        // ✅ Using driver_locations collection with status "ONLINE"
+        db.collection("driver_locations")
+            .whereEqualTo("status", "ONLINE")   // ✅ MATCHES YOUR DB
             .whereEqualTo("isAvailable", true)
             .get()
             .addOnSuccessListener { documents ->
+                android.util.Log.d("AdminFragment", "📄 Found ${documents.size()} online drivers")
+
                 if (documents.isEmpty()) {
-                    Toast.makeText(requireContext(), "No drivers available!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "No online drivers available!", Toast.LENGTH_SHORT).show()
                     return@addOnSuccessListener
                 }
 
                 val driverNames = mutableListOf<String>()
                 val driverIds = mutableListOf<String>()
+                val driverDistances = mutableListOf<String>()
+
                 for (doc in documents) {
-                    val name = doc.getString("name") ?: "Driver"
+                    val name = doc.getString("driverName") ?: "Unknown Driver"
                     val id = doc.id
-                    driverNames.add(name)
+                    val location = doc.getGeoPoint("currentLocation")
+
+                    android.util.Log.d("AdminFragment", "👤 Driver: $name, ID: $id")
+
+                    driverNames.add("🚗 $name")
                     driverIds.add(id)
+
+                    if (location != null) {
+                        driverDistances.add("📍 ${location.latitude}, ${location.longitude}")
+                    } else {
+                        driverDistances.add("📍 Location unknown")
+                    }
                 }
 
-                val driverArray = driverNames.toTypedArray()
-                androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                    .setTitle("Assign Driver")
-                    .setMessage("Select a driver for Ride #${ride.rideId.takeLast(8)}")
-                    .setItems(driverArray) { _, which ->
-                        val selectedDriverName = driverNames[which]
-                        val selectedDriverId = driverIds[which]
-                        assignDriver(ride.rideId, selectedDriverName, selectedDriverId)
-                    }
-                    .setNegativeButton("Cancel", null)
-                    .show()
+                android.util.Log.d("AdminFragment", "📊 DriverNames: $driverNames")
+
+                // ✅ Call dialog
+                showAssignDriverListDialog(ride, driverNames, driverIds, driverDistances)
             }
-            .addOnFailureListener {
-                Toast.makeText(requireContext(), "Failed to load drivers", Toast.LENGTH_SHORT).show()
+            .addOnFailureListener { e ->
+                android.util.Log.e("AdminFragment", "❌ Error: ${e.message}")
+                Toast.makeText(requireContext(), "Failed to load drivers: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -163,10 +282,123 @@ class AdminFragment : Fragment() {
             )
             .addOnSuccessListener {
                 Toast.makeText(requireContext(), "✅ Driver $driverName assigned!", Toast.LENGTH_LONG).show()
-                refreshRides()  // ✅ Refresh list
+                refreshRides()
             }
             .addOnFailureListener { e ->
                 Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+    }
+    // ADD NEW DIALOGE LIST
+    private fun showAssignDriverListDialog(
+        ride: RideModel,
+        driverNames: List<String>,
+        driverIds: List<String>,
+        driverDistances: List<String>
+    ) {
+        android.util.Log.d("AdminFragment", "🔔 showAssignDriverListDialog with ${driverNames.size} drivers")
+
+        if (driverNames.isEmpty()) {
+            Toast.makeText(requireContext(), "No drivers available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // ✅ Get pickup location
+        val pickupLat = ride.pickup?.lat ?: 0.0
+        val pickupLng = ride.pickup?.lng ?: 0.0
+
+        val displayMessage = StringBuilder("Select a driver for Ride #${ride.rideId.takeLast(8)}\n\n")
+        for (i in driverNames.indices) {
+            // ✅ Parse driver location
+            val driverLatLng = driverDistances.getOrNull(i) ?: "0.0,0.0"
+            val parts = driverLatLng.split(",")
+            val driverLat = parts.getOrNull(0)?.trim()?.toDoubleOrNull() ?: 0.0
+            val driverLng = parts.getOrNull(1)?.trim()?.toDoubleOrNull() ?: 0.0
+
+            // ✅ Calculate distance
+            val distance = calculateDistance(driverLat, driverLng, pickupLat, pickupLng)
+            val distanceText = if (distance < 1) {
+                "${(distance * 1000).toInt()} m"
+            } else {
+                "%.1f km".format(distance)
+            }
+
+            displayMessage.append("${i + 1}. ${driverNames[i]}\n")
+            displayMessage.append("   📍 $distanceText from pickup\n\n")
+        }
+
+        try {
+            val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            builder.setTitle("Assign Driver")
+            builder.setMessage(displayMessage.toString())
+            builder.setPositiveButton("Select") { _, _ ->
+                showDriverSelectionList(ride, driverNames, driverIds, driverDistances)
+            }
+            builder.setNegativeButton("Cancel", null)
+            builder.show()
+
+            android.util.Log.d("AdminFragment", "✅ Assign dialog shown successfully!")
+
+        } catch (e: Exception) {
+            android.util.Log.e("AdminFragment", "❌ Dialog error: ${e.message}")
+            Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ✅ New function for driver selection
+    private fun showDriverSelectionList(
+        ride: RideModel,
+        driverNames: List<String>,
+        driverIds: List<String>,
+        driverDistances: List<String>
+    ) {
+        // ✅ Get area center from Firestore (already have in adapter)
+        // For now, calculate distance from driver to pickup
+        val pickupLat = ride.pickup?.lat ?: 0.0
+        val pickupLng = ride.pickup?.lng ?: 0.0
+
+        val displayList = driverNames.mapIndexed { index, name ->
+            // ✅ Parse driver location from driverDistances
+            val driverLatLng = driverDistances.getOrNull(index) ?: "0.0,0.0"
+            val parts = driverLatLng.split(",")
+            val driverLat = parts.getOrNull(0)?.trim()?.toDoubleOrNull() ?: 0.0
+            val driverLng = parts.getOrNull(1)?.trim()?.toDoubleOrNull() ?: 0.0
+
+            // ✅ Calculate distance from driver to pickup
+            val distance = calculateDistance(driverLat, driverLng, pickupLat, pickupLng)
+            val distanceText = if (distance < 1) {
+                "${(distance * 1000).toInt()} m"
+            } else {
+                "%.1f km".format(distance)
+            }
+
+            "$name\n   📍 $distanceText from pickup"
+        }.toTypedArray()
+
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Select Driver")
+            .setItems(displayList) { _, which ->
+                val selectedDriverName = driverNames[which]
+                val selectedDriverId = driverIds[which]
+                android.util.Log.d("AdminFragment", "✅ Selected: $selectedDriverName")
+                assignDriver(ride.rideId, selectedDriverName, selectedDriverId)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    //distance
+    // ✅ Distance Calculator (Haversine Formula)
+    private fun calculateDistance(
+        lat1: Double, lng1: Double,
+        lat2: Double, lng2: Double
+    ): Double {
+        val R = 6371.0 // Earth radius in km
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLng = Math.toRadians(lng2 - lng1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return R * c
     }
 }

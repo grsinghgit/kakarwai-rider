@@ -98,5 +98,15 @@
         android:textColor="@color/grey"
         android:gravity="center"
         android:visibility="gone" />
+    <!-- Online Drivers Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnOnlineDrivers"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:text="🟢 Online Drivers"
+        app:cornerRadius="8dp"
+        android:textSize="14sp"
+        app:backgroundTint="@color/blue" />
 
 </LinearLayout>
