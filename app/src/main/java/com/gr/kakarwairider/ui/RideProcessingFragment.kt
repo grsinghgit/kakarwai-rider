@@ -15,7 +15,6 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.gr.kakarwairider.HistoryFragment
 import com.gr.kakarwairider.R
 
 class RideProcessingFragment : Fragment() {
@@ -58,7 +57,6 @@ class RideProcessingFragment : Fragment() {
 
         initViews(view)
 
-        // ✅ Get rideId from arguments
         rideId = arguments?.getString("rideId")
 
         if (rideId != null) {
@@ -118,13 +116,8 @@ class RideProcessingFragment : Fragment() {
                         tvVehicle.text = "$vehicleIcon $vehicleName"
                         tvFare.text = "💰 ₹${totalFare.toInt()}"
 
-                        // ✅ Store fare for later use
-                        val fare = totalFare
-                        tvFare.tag = fare
-
                         cardRideDetails.visibility = View.VISIBLE
 
-                        // ✅ Check current status
                         val status = data["status"] as? String ?: "PENDING"
                         handleStatusUpdate(status, data)
                     }
@@ -145,10 +138,14 @@ class RideProcessingFragment : Fragment() {
         }
     }
 
+    // ============================================================
+    // ✅ HANDLE STATUS UPDATE
+    // ============================================================
+
     private fun handleStatusUpdate(status: String, data: Map<String, Any>) {
         when (status) {
             "PENDING", "SEARCHING" -> showSearchingState(data)
-            "DRIVER_ASSIGNED" -> showDriverAssignedState(data)
+            "DRIVER_ASSIGNED", "ACCEPTED" -> showDriverAssignedState(data)
             "STARTED" -> navigateToTracking(data)
             "COMPLETED", "CANCELLED", "EXPIRED" -> finishRide(status, data)
         }
@@ -163,12 +160,12 @@ class RideProcessingFragment : Fragment() {
         btnStartRide.visibility = View.GONE
         cardDriverDetails.visibility = View.GONE
 
-        // ✅ Show timer if not already started
         if (countDownTimer == null) {
             startTimer()
         }
     }
 
+    // ✅ UPDATED: Driver Assigned State with Navigation to Tracking
     private fun showDriverAssignedState(data: Map<String, Any>) {
         isDriverAssigned = true
         progressBar.visibility = View.GONE
@@ -200,15 +197,16 @@ class RideProcessingFragment : Fragment() {
         tvTimer.text = "🚗 Driver is on the way!"
 
         Toast.makeText(requireContext(), "🚗 Driver $driverName assigned!", Toast.LENGTH_LONG).show()
+
+        // ✅ Navigate to Tracking after 2 seconds
+        tvTimer.postDelayed({
+            navigateToTracking(data)
+        }, 2000)
     }
 
     private fun navigateToTracking(data: Map<String, Any>) {
         val bundle = Bundle().apply {
             putString("rideId", data["rideId"] as? String)
-            putString("driverName", data["driverName"] as? String)
-            putString("driverPhone", data["driverPhone"] as? String)
-            putString("driverVehicle", data["driverVehicle"] as? String)
-            putString("driverVehicleNumber", data["driverVehicleNumber"] as? String)
         }
         findNavController().navigate(R.id.action_processing_to_tracking, bundle)
     }
@@ -237,11 +235,11 @@ class RideProcessingFragment : Fragment() {
     }
 
     // ============================================================
-    // ✅ 5 MINUTE TIMER
+    // ✅ TIMER
     // ============================================================
 
     private fun startTimer() {
-        val expireTime = System.currentTimeMillis() + 300000 // 5 minutes
+        val expireTime = System.currentTimeMillis() + 300000
         val timeLeft = expireTime - System.currentTimeMillis()
 
         if (timeLeft <= 0) {
@@ -319,11 +317,7 @@ class RideProcessingFragment : Fragment() {
                 .addOnSuccessListener {
                     countDownTimer?.cancel()
                     Toast.makeText(requireContext(), "Ride Cancelled", Toast.LENGTH_SHORT).show()
-
-                    // ✅ Safe Navigation - Activity se check karein
-                    activity?.supportFragmentManager?.beginTransaction()
-                        ?.replace(R.id.fragment_container, HistoryFragment())
-                        ?.commit()
+                    findNavController().popBackStack()
                 }
                 .addOnFailureListener {
                     Toast.makeText(requireContext(), "Failed to cancel ride", Toast.LENGTH_SHORT).show()

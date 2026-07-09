@@ -4,25 +4,51 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
     android:background="@color/white">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <!-- ✅ Back Button with Title -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="🚗 Driver Assigned!"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:textColor="@color/green"
-        android:layout_marginBottom="8dp" />
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Driver is on the way to your location"
-        android:textSize="14sp"
-        android:textColor="@color/grey"
-        android:layout_marginBottom="24dp" />
+        <ImageView
+            android:id="@+id/ivBack"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_back"
+            android:padding="4dp"
+            android:contentDescription="Back" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🚗 Ride Tracking"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            android:layout_marginStart="8dp" />
+
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Searching..."
+            android:textSize="14sp"
+            android:textColor="@color/orange" />
+
+    </LinearLayout>
+
+    <!-- Map -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/mapFragment"
+        android:name="com.google.android.gms.maps.SupportMapFragment"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
 
     <!-- Driver Details Card -->
     <com.google.android.material.card.MaterialCardView
@@ -31,7 +57,7 @@
         android:layout_height="wrap_content"
         app:cardCornerRadius="12dp"
         app:cardElevation="4dp"
-        android:layout_marginBottom="16dp"
+        android:layout_margin="16dp"
         android:visibility="gone">
 
         <LinearLayout
@@ -41,22 +67,12 @@
             android:padding="16dp">
 
             <TextView
-                android:id="@+id/tvRideId"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Ride ID: #XYZ123"
-                android:textSize="12sp"
-                android:textColor="@color/grey"
-                android:layout_marginBottom="12dp" />
-
-            <TextView
                 android:id="@+id/tvDriverName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="🚗 Rahul Singh"
                 android:textSize="18sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="4dp" />
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tvDriverPhone"
@@ -64,92 +80,28 @@
                 android:layout_height="wrap_content"
                 android:text="📱 +91 9876543210"
                 android:textSize="14sp"
-                android:textColor="@color/grey"
-                android:layout_marginBottom="4dp" />
+                android:textColor="@color/grey" />
 
             <TextView
-                android:id="@+id/tvVehicle"
+                android:id="@+id/tvVehicleInfo"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🚙 Maruti Suzuki Swift"
+                android:text="🚙 Maruti Swift | DL-01-AB-1234"
                 android:textSize="14sp"
-                android:textColor="@color/grey"
-                android:layout_marginBottom="4dp" />
-
-            <TextView
-                android:id="@+id/tvVehicleNumber"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🔢 DL-01-AB-1234"
-                android:textSize="14sp"
-                android:textColor="@color/grey"
-                android:layout_marginBottom="12dp" />
+                android:textColor="@color/grey" />
 
             <TextView
                 android:id="@+id/tvFare"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="💰 ₹236 (CASH Payment)"
-                android:textSize="18sp"
+                android:text="💰 ₹236"
+                android:textSize="16sp"
                 android:textStyle="bold"
-                android:textColor="@color/primary" />
+                android:textColor="@color/primary"
+                android:layout_marginTop="4dp" />
 
         </LinearLayout>
 
     </com.google.android.material.card.MaterialCardView>
-
-    <!-- Driver Moving Animation (Placeholder) -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginBottom="16dp"
-        android:background="@drawable/gradient_primary">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🚗"
-            android:textSize="48sp"
-            android:layout_gravity="center" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Driver is moving..."
-            android:textColor="@color/white"
-            android:layout_gravity="bottom|center"
-            android:layout_marginBottom="16dp" />
-
-    </FrameLayout>
-
-    <!-- Buttons -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnStartRide"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:text="🚗 Start Ride"
-            app:cornerRadius="12dp"
-            app:backgroundTint="@color/green" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCancel"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="Cancel"
-            app:cornerRadius="12dp" />
-
-    </LinearLayout>
 
 </LinearLayout>
