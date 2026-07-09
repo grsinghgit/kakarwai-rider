@@ -15,9 +15,14 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.toObject
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.adapter.DriverRideAdapter
+import com.gr.kakarwairider.model.RideModel
 import com.gr.kakarwairider.service.DriverLocationService
 
 class DriverDashboardFragment : Fragment() {
@@ -26,9 +31,12 @@ class DriverDashboardFragment : Fragment() {
     private lateinit var tvStatus: TextView
     private lateinit var btnGoOnline: MaterialButton
     private lateinit var btnLogout: MaterialButton
+    private lateinit var recyclerView: RecyclerView
+    private lateinit var adapter: DriverRideAdapter
     private val db = FirebaseFirestore.getInstance()
     private var driverId: String? = null
     private var isOnline = false
+    private val rideList = mutableListOf<RideModel>()
     private val LOCATION_PERMISSION_REQUEST = 100
 
     override fun onCreateView(
@@ -46,6 +54,7 @@ class DriverDashboardFragment : Fragment() {
         tvStatus = view.findViewById(R.id.tvStatus)
         btnGoOnline = view.findViewById(R.id.btnGoOnline)
         btnLogout = view.findViewById(R.id.btnLogout)
+        recyclerView = view.findViewById(R.id.recyclerView)
 
         val sharedPref = requireActivity().getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
         driverId = sharedPref.getString("driverId", null)
@@ -56,7 +65,9 @@ class DriverDashboardFragment : Fragment() {
             return
         }
 
+        setupRecyclerView()
         loadDriverDetails()
+        listenForRides()
 
         btnGoOnline.setOnClickListener {
             if (!hasLocationPermission()) {
@@ -67,12 +78,54 @@ class DriverDashboardFragment : Fragment() {
         }
 
         btnLogout.setOnClickListener {
-            // ✅ Stop service if running
             requireActivity().stopService(Intent(requireContext(), DriverLocationService::class.java))
             val pref = requireActivity().getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
             pref.edit().clear().apply()
             findNavController().navigate(R.id.action_driver_dashboard_to_login)
         }
+    }
+
+    private fun setupRecyclerView() {
+        adapter = DriverRideAdapter(
+            rides = rideList,
+            onAccept = { ride ->
+                updateRideStatus(ride.rideId, "ACCEPTED")
+            },
+            onReject = { ride ->
+                updateRideStatus(ride.rideId, "REJECTED")
+            }
+        )
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.adapter = adapter
+    }
+
+    private fun listenForRides() {
+        driverId?.let { id ->
+            db.collection("rides")
+                .whereEqualTo("driverId", id)
+                .whereIn("status", listOf("DRIVER_ASSIGNED", "ACCEPTED", "STARTED"))
+                .addSnapshotListener { snapshots, error ->
+                    if (error != null || snapshots == null) return@addSnapshotListener
+
+                    rideList.clear()
+                    for (doc in snapshots) {
+                        val ride = doc.toObject(RideModel::class.java)
+                        rideList.add(ride)
+                    }
+                    adapter.notifyDataSetChanged()
+                }
+        }
+    }
+
+    private fun updateRideStatus(rideId: String, status: String) {
+        db.collection("rides").document(rideId)
+            .update("status", status)
+            .addOnSuccessListener {
+                Toast.makeText(requireContext(), "✅ Ride $status", Toast.LENGTH_SHORT).show()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun hasLocationPermission(): Boolean {
@@ -115,13 +168,13 @@ class DriverDashboardFragment : Fragment() {
 
     private fun toggleOnlineStatus() {
         if (isOnline) {
-            // ✅ Go Offline - Stop service
+            // Go Offline
             requireActivity().stopService(Intent(requireContext(), DriverLocationService::class.java))
             updateUIStatus(false)
             updateDriverStatus(false)
             Toast.makeText(requireContext(), "🔴 You are offline", Toast.LENGTH_SHORT).show()
         } else {
-            // ✅ Go Online - Start service
+            // Go Online
             val intent = Intent(requireContext(), DriverLocationService::class.java)
             ContextCompat.startForegroundService(requireContext(), intent)
             updateUIStatus(true)
@@ -185,7 +238,6 @@ class DriverDashboardFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // ✅ Stop service when fragment destroys
         if (!isOnline) {
             requireActivity().stopService(Intent(requireContext(), DriverLocationService::class.java))
         }

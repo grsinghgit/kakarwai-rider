@@ -70,7 +70,7 @@
         app:cornerRadius="12dp"
         app:backgroundTint="@color/green" />
 
-    <!-- Ride List (Coming Soon) -->
+    <!-- ✅ Assigned Rides Section -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -80,14 +80,11 @@
         android:layout_marginTop="16dp"
         android:layout_marginBottom="8dp" />
 
-    <TextView
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:text="No rides assigned yet"
-        android:textSize="14sp"
-        android:textColor="@color/grey"
-        android:gravity="center" />
+        android:layout_weight="1" />
 
     <!-- Logout -->
     <com.google.android.material.button.MaterialButton
