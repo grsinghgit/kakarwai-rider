@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
 
         val appBarConfiguration = AppBarConfiguration(
             setOf(
+                R.id.driverLoginFragment,  // ✅ Changed from driverFragment
                 R.id.homeFragment,
                 R.id.driverFragment,
                 R.id.vendorFragment,

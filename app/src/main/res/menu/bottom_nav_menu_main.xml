@@ -20,5 +20,9 @@
         android:id="@id/adminFragment"
         android:icon="@drawable/ic_admin"
         android:title="Admin" />
+    <item
+        android:id="@id/driverLoginFragment"
+        android:icon="@drawable/ic_driver"
+        android:title="Driver" />
 
 </menu>

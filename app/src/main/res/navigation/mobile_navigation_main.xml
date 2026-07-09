@@ -96,5 +96,29 @@
         android:id="@+id/driverFormFragment"
         android:name="com.gr.kakarwairider.ui.DriverFormFragment"
         android:label="Add Driver" />
+    <!-- Driver Login -->
+    <fragment
+        android:id="@+id/driverLoginFragment"
+        android:name="com.gr.kakarwairider.ui.DriverLoginFragment"
+        android:label="Driver Login" />
+
+    <!-- Driver Dashboard -->
+    <fragment
+        android:id="@+id/driverDashboardFragment"
+        android:name="com.gr.kakarwairider.ui.DriverDashboardFragment"
+        android:label="Driver Dashboard" />
+
+    <!-- Actions -->
+    <action
+        android:id="@+id/action_driver_login_to_dashboard"
+        app:destination="@id/driverDashboardFragment"
+        app:popUpTo="@id/driverLoginFragment"
+        app:popUpToInclusive="true" />
+
+    <action
+        android:id="@+id/action_driver_dashboard_to_login"
+        app:destination="@id/driverLoginFragment"
+        app:popUpTo="@id/driverDashboardFragment"
+        app:popUpToInclusive="true" />
 
 </navigation>

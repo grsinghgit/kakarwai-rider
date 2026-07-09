@@ -1,0 +1,193 @@
+package com.gr.kakarwairider.ui
+
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.google.android.material.button.MaterialButton
+import com.google.firebase.firestore.FirebaseFirestore
+import com.gr.kakarwairider.R
+import com.gr.kakarwairider.service.DriverLocationService
+
+class DriverDashboardFragment : Fragment() {
+
+    private lateinit var tvDriverName: TextView
+    private lateinit var tvStatus: TextView
+    private lateinit var btnGoOnline: MaterialButton
+    private lateinit var btnLogout: MaterialButton
+    private val db = FirebaseFirestore.getInstance()
+    private var driverId: String? = null
+    private var isOnline = false
+    private val LOCATION_PERMISSION_REQUEST = 100
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        return inflater.inflate(R.layout.fragment_driver_dashboard, container, false)
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        tvDriverName = view.findViewById(R.id.tvDriverName)
+        tvStatus = view.findViewById(R.id.tvStatus)
+        btnGoOnline = view.findViewById(R.id.btnGoOnline)
+        btnLogout = view.findViewById(R.id.btnLogout)
+
+        val sharedPref = requireActivity().getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
+        driverId = sharedPref.getString("driverId", null)
+
+        if (driverId == null) {
+            Toast.makeText(requireContext(), "Please login again", Toast.LENGTH_SHORT).show()
+            findNavController().popBackStack()
+            return
+        }
+
+        loadDriverDetails()
+
+        btnGoOnline.setOnClickListener {
+            if (!hasLocationPermission()) {
+                requestLocationPermission()
+                return@setOnClickListener
+            }
+            toggleOnlineStatus()
+        }
+
+        btnLogout.setOnClickListener {
+            // ✅ Stop service if running
+            requireActivity().stopService(Intent(requireContext(), DriverLocationService::class.java))
+            val pref = requireActivity().getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
+            pref.edit().clear().apply()
+            findNavController().navigate(R.id.action_driver_dashboard_to_login)
+        }
+    }
+
+    private fun hasLocationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+        return ContextCompat.checkSelfPermission(
+            requireContext(),
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun requestLocationPermission() {
+        requestPermissions(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ),
+            LOCATION_PERMISSION_REQUEST
+        )
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == LOCATION_PERMISSION_REQUEST) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                toggleOnlineStatus()
+            } else {
+                Toast.makeText(requireContext(), "Location permission required!", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun toggleOnlineStatus() {
+        if (isOnline) {
+            // ✅ Go Offline - Stop service
+            requireActivity().stopService(Intent(requireContext(), DriverLocationService::class.java))
+            updateUIStatus(false)
+            updateDriverStatus(false)
+            Toast.makeText(requireContext(), "🔴 You are offline", Toast.LENGTH_SHORT).show()
+        } else {
+            // ✅ Go Online - Start service
+            val intent = Intent(requireContext(), DriverLocationService::class.java)
+            ContextCompat.startForegroundService(requireContext(), intent)
+            updateUIStatus(true)
+            updateDriverStatus(true)
+            Toast.makeText(requireContext(), "🟢 You are online", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateDriverStatus(online: Boolean) {
+        driverId?.let { id ->
+            val status = if (online) "ONLINE" else "OFFLINE"
+            db.collection("driver_locations").document(id)
+                .update(
+                    mapOf(
+                        "status" to status,
+                        "isAvailable" to online,
+                        "updatedAt" to com.google.firebase.Timestamp.now()
+                    )
+                )
+        }
+    }
+
+    private fun updateUIStatus(online: Boolean) {
+        isOnline = online
+        if (online) {
+            tvStatus.text = "🟢 ONLINE"
+            tvStatus.setTextColor(resources.getColor(R.color.green, null))
+            btnGoOnline.text = "🔴 Go Offline"
+            btnGoOnline.setBackgroundColor(resources.getColor(R.color.red, null))
+        } else {
+            tvStatus.text = "🔴 OFFLINE"
+            tvStatus.setTextColor(resources.getColor(R.color.red, null))
+            btnGoOnline.text = "🟢 Go Online"
+            btnGoOnline.setBackgroundColor(resources.getColor(R.color.green, null))
+        }
+    }
+
+    private fun loadDriverDetails() {
+        driverId?.let { id ->
+            db.collection("drivers").document(id)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        val name = document.getString("name") ?: "Driver"
+                        tvDriverName.text = "Welcome, $name"
+                    }
+                }
+        }
+
+        driverId?.let { id ->
+            db.collection("driver_locations").document(id)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        val status = document.getString("status") ?: "OFFLINE"
+                        updateUIStatus(status == "ONLINE")
+                    }
+                }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // ✅ Stop service when fragment destroys
+        if (!isOnline) {
+            requireActivity().stopService(Intent(requireContext(), DriverLocationService::class.java))
+        }
+    }
+}
