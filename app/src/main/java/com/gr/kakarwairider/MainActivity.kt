@@ -47,9 +47,9 @@ class MainActivity : AppCompatActivity() {
             setOf(
                 R.id.driverLoginFragment,  // ✅ Changed from driverFragment
                 R.id.homeFragment,
-                R.id.driverFragment,
+                R.id.driverLoginFragment,
                 R.id.vendorFragment,
-                R.id.adminFragment,
+                R.id.adminLoginFragment,
                 R.id.loginFragment
             )
         )

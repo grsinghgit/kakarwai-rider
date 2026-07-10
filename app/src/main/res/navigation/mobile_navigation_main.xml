@@ -10,17 +10,23 @@
         android:name="com.gr.kakarwairider.ui.LoginFragment"
         android:label="Login" />
 
-    <!-- Home -->
+    <!-- Home (User) -->
     <fragment
         android:id="@+id/homeFragment"
         android:name="com.gr.kakarwairider.ui.HomeFragment"
         android:label="Home" />
 
-    <!-- Driver -->
+    <!-- Driver Login -->
     <fragment
-        android:id="@+id/driverFragment"
-        android:name="com.gr.kakarwairider.ui.DriverFragment"
-        android:label="Driver" />
+        android:id="@+id/driverLoginFragment"
+        android:name="com.gr.kakarwairider.ui.DriverLoginFragment"
+        android:label="Driver Login" />
+
+    <!-- Driver Dashboard -->
+    <fragment
+        android:id="@+id/driverDashboardFragment"
+        android:name="com.gr.kakarwairider.ui.DriverDashboardFragment"
+        android:label="Driver Dashboard" />
 
     <!-- Vendor -->
     <fragment
@@ -28,47 +34,11 @@
         android:name="com.gr.kakarwairider.ui.VendorFragment"
         android:label="Vendor" />
 
-    <!-- Admin -->
-    <fragment
-        android:id="@+id/adminFragment"
-        android:name="com.gr.kakarwairider.ui.AdminFragment"
-        android:label="Admin" />
-    <!-- Admin Login Fragment -->
-    <fragment
-        android:id="@+id/adminLoginFragment"
-        android:name="com.gr.kakarwairider.ui.AdminLoginFragment"
-        android:label="Admin Login" />
-
-    <!-- Admin Fragment -->
-    <fragment
-        android:id="@+id/adminFragment"
-        android:name="com.gr.kakarwairider.ui.AdminFragment"
-        android:label="Admin Dashboard" />
-
-    <!-- Actions -->
-    <action
-        android:id="@+id/action_login_to_home"
-        app:destination="@id/homeFragment"
-        app:popUpTo="@id/loginFragment"
-        app:popUpToInclusive="true" />
-
-    <action
-        android:id="@+id/action_home_to_login"
-        app:destination="@id/loginFragment"
-        app:popUpTo="@id/homeFragment"
-        app:popUpToInclusive="true" />
-    <!-- Admin Login Fragment -->
+    <!-- Admin Login -->
     <fragment
         android:id="@+id/adminLoginFragment"
         android:name="com.gr.kakarwairider.ui.AdminLoginFragment"
         android:label="Admin Login">
-
-        <!-- ✅ Actions -->
-        <action
-            android:id="@+id/action_admin_login_to_admin"
-            app:destination="@id/adminFragment"
-            app:popUpTo="@id/adminLoginFragment"
-            app:popUpToInclusive="true" />
 
         <action
             android:id="@+id/action_admin_login_to_home"
@@ -76,9 +46,15 @@
             app:popUpTo="@id/adminLoginFragment"
             app:popUpToInclusive="true" />
 
+        <action
+            android:id="@+id/action_admin_login_to_admin"
+            app:destination="@id/adminFragment"
+            app:popUpTo="@id/adminLoginFragment"
+            app:popUpToInclusive="true" />
+
     </fragment>
 
-    <!-- Admin Fragment -->
+    <!-- Admin Dashboard -->
     <fragment
         android:id="@+id/adminFragment"
         android:name="com.gr.kakarwairider.ui.AdminFragment"
@@ -92,23 +68,25 @@
 
     </fragment>
 
+    <!-- Driver Form -->
     <fragment
         android:id="@+id/driverFormFragment"
         android:name="com.gr.kakarwairider.ui.DriverFormFragment"
         android:label="Add Driver" />
-    <!-- Driver Login -->
-    <fragment
-        android:id="@+id/driverLoginFragment"
-        android:name="com.gr.kakarwairider.ui.DriverLoginFragment"
-        android:label="Driver Login" />
-
-    <!-- Driver Dashboard -->
-    <fragment
-        android:id="@+id/driverDashboardFragment"
-        android:name="com.gr.kakarwairider.ui.DriverDashboardFragment"
-        android:label="Driver Dashboard" />
 
     <!-- Actions -->
+    <action
+        android:id="@+id/action_login_to_home"
+        app:destination="@id/homeFragment"
+        app:popUpTo="@id/loginFragment"
+        app:popUpToInclusive="true" />
+
+    <action
+        android:id="@+id/action_home_to_login"
+        app:destination="@id/loginFragment"
+        app:popUpTo="@id/homeFragment"
+        app:popUpToInclusive="true" />
+
     <action
         android:id="@+id/action_driver_login_to_dashboard"
         app:destination="@id/driverDashboardFragment"
