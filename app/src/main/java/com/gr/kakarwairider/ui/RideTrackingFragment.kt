@@ -3,6 +3,8 @@ package com.gr.kakarwairider.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -39,9 +41,12 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
     private var driverMarker: Marker? = null
     private var isMapReady = false
     private var isFirstLocation = true
+    private var isFragmentAttached = true
+    private var isNavigating = false
     private var pickupLatLng: LatLng? = null
     private var destinationLatLng: LatLng? = null
     private var rideDataMap: Map<String, Any>? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -66,17 +71,28 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
 
         if (rideId == null) {
             Toast.makeText(requireContext(), "Ride not found", Toast.LENGTH_SHORT).show()
-            findNavController().popBackStack()
+            safePopBack()
             return
         }
 
-        val mapFragment = childFragmentManager.findFragmentById(R.id.mapFragment) as SupportMapFragment
-        mapFragment.getMapAsync(this)
+        val mapFragment = childFragmentManager.findFragmentById(R.id.mapFragment) as? SupportMapFragment
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this)
+        } else {
+            Toast.makeText(requireContext(), "Map error", Toast.LENGTH_SHORT).show()
+            safePopBack()
+            return
+        }
 
         listenForRideUpdates()
 
         btnCancelRide.setOnClickListener {
             showCancelDialog()
+        }
+
+        // ✅ Back button on toolbar handle
+        view.findViewById<View>(R.id.ivBack)?.setOnClickListener {
+            safePopBack()
         }
     }
 
@@ -91,17 +107,53 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
             mMap.isMyLocationEnabled = true
         }
 
-        // ✅ If we already have ride data, update map
         rideDataMap?.let {
-            updateMapWithLocations()
+            handler.postDelayed({
+                if (isFragmentAttached && isAdded) {
+                    updateMapWithLocations()
+                }
+            }, 200)
         }
     }
+
+    // ============================================================
+    // ✅ SAFE POP BACK
+    // ============================================================
+
+    private fun safePopBack() {
+        if (isNavigating) return
+        isNavigating = true
+        try {
+            if (isAdded && isFragmentAttached) {
+                findNavController().popBackStack()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("RideTracking", "PopBack error: ${e.message}")
+        } finally {
+            handler.postDelayed({
+                isNavigating = false
+            }, 500)
+        }
+    }
+
+    // ============================================================
+    // ✅ LISTEN FOR RIDE UPDATES
+    // ============================================================
 
     private fun listenForRideUpdates() {
         rideId?.let { id ->
             db.collection("rides").document(id)
                 .addSnapshotListener { snapshot, error ->
-                    if (error != null || snapshot == null) return@addSnapshotListener
+                    if (error != null) {
+                        android.util.Log.e("RideTracking", "Error: ${error.message}")
+                        return@addSnapshotListener
+                    }
+                    if (snapshot == null || !snapshot.exists()) {
+                        return@addSnapshotListener
+                    }
+                    if (!isAdded || !isFragmentAttached) {
+                        return@addSnapshotListener
+                    }
 
                     val data = snapshot.data
                     if (data == null) return@addSnapshotListener
@@ -109,128 +161,156 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
                     rideDataMap = data
                     val status = data["status"] as? String ?: "PENDING"
 
-                    // ✅ Extract locations
                     val pickup = data["pickup"] as? Map<*, *>
                     val destination = data["destination"] as? Map<*, *>
 
                     pickup?.let {
                         val lat = (it["lat"] as? Number)?.toDouble() ?: 0.0
                         val lng = (it["lng"] as? Number)?.toDouble() ?: 0.0
-                        pickupLatLng = LatLng(lat, lng)
+                        if (lat != 0.0 || lng != 0.0) {
+                            pickupLatLng = LatLng(lat, lng)
+                        }
                     }
 
                     destination?.let {
                         val lat = (it["lat"] as? Number)?.toDouble() ?: 0.0
                         val lng = (it["lng"] as? Number)?.toDouble() ?: 0.0
-                        destinationLatLng = LatLng(lat, lng)
-                    }
-
-                    when (status) {
-                        "DRIVER_ASSIGNED", "ACCEPTED", "STARTED" -> {
-                            val driverId = data["driverId"] as? String
-                            val driverName = data["driverName"] as? String
-                            val driverPhone = data["driverPhone"] as? String
-                            val driverVehicle = data["driverVehicle"] as? String
-                            val driverVehicleNumber = data["driverVehicleNumber"] as? String
-                            val totalFare = data["totalFare"] as? Double ?: 0.0
-
-                            tvDriverName.text = "🚗 ${driverName ?: "Driver"}"
-                            tvDriverPhone.text = "📱 ${driverPhone ?: "N/A"}"
-                            tvVehicleInfo.text = "🚙 ${driverVehicle ?: "Car"} | ${driverVehicleNumber ?: "N/A"}"
-                            tvFare.text = "💰 ₹${totalFare.toInt()}"
-                            cardDriverDetails.visibility = View.VISIBLE
-
-                            if (isMapReady) {
-                                updateMapWithLocations()
-                            }
-
-                            if (driverId != null) {
-                                this@RideTrackingFragment.driverId = driverId
-                                listenForDriverLocation(driverId)
-                            }
-
-                            when (status) {
-                                "DRIVER_ASSIGNED" -> {
-                                    tvStatus.text = "⏳ Waiting for Driver..."
-                                    tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
-                                    btnCancelRide.visibility = View.VISIBLE
-                                }
-                                "ACCEPTED" -> {
-                                    tvStatus.text = "🚗 Driver Accepted!"
-                                    tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
-                                    btnCancelRide.visibility = View.VISIBLE
-                                }
-                                "STARTED" -> {
-                                    tvStatus.text = "🚗 Ride Started!"
-                                    tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.blue))
-                                    btnCancelRide.visibility = View.GONE
-                                }
-                            }
-                        }
-                        "COMPLETED" -> {
-                            tvStatus.text = "✅ Ride Completed"
-                            tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
-                            driverMarker?.remove()
-                            btnCancelRide.visibility = View.GONE
-                            Toast.makeText(requireContext(), "Ride Completed! Thank you.", Toast.LENGTH_LONG).show()
-                        }
-                        "CANCELLED" -> {
-                            tvStatus.text = "❌ Ride Cancelled"
-                            tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-                            driverMarker?.remove()
-                            btnCancelRide.visibility = View.GONE
-                            if (isAdded) findNavController().popBackStack()
-                        }
-                        "REJECTED" -> {
-                            tvStatus.text = "❌ Driver Rejected"
-                            tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-                            btnCancelRide.visibility = View.GONE
-                            Toast.makeText(requireContext(), "Driver rejected the ride", Toast.LENGTH_LONG).show()
-                            if (isAdded) findNavController().popBackStack()
-                        }
-                        else -> {
-                            tvStatus.text = "⏳ Searching for driver..."
-                            tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
-                            btnCancelRide.visibility = View.GONE
+                        if (lat != 0.0 || lng != 0.0) {
+                            destinationLatLng = LatLng(lat, lng)
                         }
                     }
+
+                    handleStatusUpdate(status, data)
                 }
         }
     }
 
-    // ✅ Update Map with Pickup, Destination, Route
+    // ============================================================
+    // ✅ HANDLE STATUS UPDATE
+    // ============================================================
+
+    private fun handleStatusUpdate(status: String, data: Map<String, Any>) {
+        if (!isAdded || !isFragmentAttached) return
+
+        when (status) {
+            "DRIVER_ASSIGNED", "ACCEPTED", "STARTED" -> {
+                val driverId = data["driverId"] as? String
+                val driverName = data["driverName"] as? String
+                val driverPhone = data["driverPhone"] as? String
+                val driverVehicle = data["driverVehicle"] as? String
+                val driverVehicleNumber = data["driverVehicleNumber"] as? String
+                val totalFare = data["totalFare"] as? Double ?: 0.0
+
+                if (isAdded) {
+                    tvDriverName.text = "🚗 ${driverName ?: "Driver"}"
+                    tvDriverPhone.text = "📱 ${driverPhone ?: "N/A"}"
+                    tvVehicleInfo.text = "🚙 ${driverVehicle ?: "Car"} | ${driverVehicleNumber ?: "N/A"}"
+                    tvFare.text = "💰 ₹${totalFare.toInt()}"
+                    cardDriverDetails.visibility = View.VISIBLE
+                }
+
+                if (isMapReady && isAdded) {
+                    handler.postDelayed({
+                        if (isFragmentAttached && isAdded) {
+                            updateMapWithLocations()
+                        }
+                    }, 100)
+                }
+
+                if (driverId != null) {
+                    this@RideTrackingFragment.driverId = driverId
+                    listenForDriverLocation(driverId)
+                }
+
+                when (status) {
+                    "DRIVER_ASSIGNED" -> updateStatusUI("⏳ Waiting for Driver...", R.color.orange, true)
+                    "ACCEPTED" -> updateStatusUI("🚗 Driver Accepted!", R.color.green, true)
+                    "STARTED" -> updateStatusUI("🚗 Ride Started!", R.color.blue, false)
+                }
+            }
+            "COMPLETED" -> {
+                driverMarker?.remove()
+                if (isAdded) {
+                    tvStatus.text = "✅ Ride Completed"
+                    tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+                    btnCancelRide.visibility = View.GONE
+                    Toast.makeText(requireContext(), "Ride Completed! Thank you.", Toast.LENGTH_LONG).show()
+                    handler.postDelayed({
+                        safePopBack()
+                    }, 2000)
+                }
+            }
+            "CANCELLED" -> {
+                driverMarker?.remove()
+                if (isAdded) {
+                    tvStatus.text = "❌ Ride Cancelled"
+                    tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+                    btnCancelRide.visibility = View.GONE
+                    safePopBack()
+                }
+            }
+            "REJECTED" -> {
+                if (isAdded) {
+                    tvStatus.text = "❌ Driver Rejected"
+                    tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+                    btnCancelRide.visibility = View.GONE
+                    Toast.makeText(requireContext(), "Driver rejected the ride", Toast.LENGTH_LONG).show()
+                    handler.postDelayed({
+                        safePopBack()
+                    }, 1500)
+                }
+            }
+            else -> {
+                if (isAdded) {
+                    tvStatus.text = "⏳ Searching for driver..."
+                    tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
+                    btnCancelRide.visibility = View.GONE
+                }
+            }
+        }
+    }
+
+    private fun updateStatusUI(message: String, colorRes: Int, showCancel: Boolean) {
+        if (!isAdded) return
+        tvStatus.text = message
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
+        btnCancelRide.visibility = if (showCancel) View.VISIBLE else View.GONE
+    }
+
+    // ============================================================
+    // ✅ MAP UPDATE FUNCTIONS
+    // ============================================================
+
     private fun updateMapWithLocations() {
-        if (!isMapReady) return
+        if (!isMapReady || !::mMap.isInitialized || !isAdded) return
 
-        // Clear old markers
-        mMap.clear()
-        driverMarker = null
+        try {
+            mMap.clear()
+            driverMarker = null
 
-        // ✅ 1. Pickup Marker (Green)
-        pickupLatLng?.let { latLng ->
-            mMap.addMarker(
-                MarkerOptions()
-                    .position(latLng)
-                    .title("📍 Pickup")
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
-            )
+            pickupLatLng?.let { latLng ->
+                mMap.addMarker(
+                    MarkerOptions()
+                        .position(latLng)
+                        .title("📍 Pickup")
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+                )
+            }
+
+            destinationLatLng?.let { latLng ->
+                mMap.addMarker(
+                    MarkerOptions()
+                        .position(latLng)
+                        .title("🏁 Destination")
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+                )
+            }
+
+            drawRoute()
+            centerMapOnAllPoints()
+        } catch (e: Exception) {
+            android.util.Log.e("RideTracking", "Map update error: ${e.message}")
         }
-
-        // ✅ 2. Destination Marker (Red)
-        destinationLatLng?.let { latLng ->
-            mMap.addMarker(
-                MarkerOptions()
-                    .position(latLng)
-                    .title("🏁 Destination")
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-            )
-        }
-
-        // ✅ 3. Draw Route Line (Blue)
-        drawRoute()
-
-        // ✅ 4. Center map to show all points
-        centerMapOnAllPoints()
     }
 
     private fun drawRoute() {
@@ -245,33 +325,37 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun centerMapOnAllPoints() {
-        val builder = LatLngBounds.Builder()
-        pickupLatLng?.let { builder.include(it) }
-        destinationLatLng?.let { builder.include(it) }
-        driverMarker?.position?.let { builder.include(it) }
-
         try {
+            val builder = LatLngBounds.Builder()
+            pickupLatLng?.let { builder.include(it) }
+            destinationLatLng?.let { builder.include(it) }
+            driverMarker?.position?.let { builder.include(it) }
+
             val bounds = builder.build()
             mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
         } catch (e: Exception) {
-            // Fallback to pickup location
             pickupLatLng?.let {
                 mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it, 14f))
             }
         }
     }
 
+    // ============================================================
+    // ✅ DRIVER LOCATION TRACKING
+    // ============================================================
+
     private fun listenForDriverLocation(driverId: String) {
         db.collection("driver_locations").document(driverId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null || snapshot == null) return@addSnapshotListener
+                if (!isFragmentAttached || !isAdded) return@addSnapshotListener
 
                 val location = snapshot.getGeoPoint("currentLocation")
                 if (location != null) {
                     val latLng = LatLng(location.latitude, location.longitude)
                     updateDriverMarker(latLng)
 
-                    if (isFirstLocation && isMapReady) {
+                    if (isFirstLocation && isMapReady && isAdded) {
                         centerMapOnAllPoints()
                         isFirstLocation = false
                     }
@@ -280,7 +364,7 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun updateDriverMarker(latLng: LatLng) {
-        if (!isMapReady) return
+        if (!isMapReady || !::mMap.isInitialized || !isAdded) return
 
         if (driverMarker == null) {
             driverMarker = mMap.addMarker(
@@ -294,6 +378,10 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
             driverMarker?.position = latLng
         }
     }
+
+    // ============================================================
+    // ✅ CANCEL RIDE
+    // ============================================================
 
     private fun showCancelDialog() {
         if (!isAdded) return
@@ -329,7 +417,7 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
             .addOnSuccessListener {
                 if (isAdded) {
                     Toast.makeText(requireContext(), "✅ Ride Cancelled: $reason", Toast.LENGTH_LONG).show()
-                    findNavController().popBackStack()
+                    safePopBack()
                 }
             }
             .addOnFailureListener { e ->
@@ -339,8 +427,21 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
             }
     }
 
+    // ============================================================
+    // ✅ LIFECYCLE
+    // ============================================================
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        isFragmentAttached = false
+        handler.removeCallbacksAndMessages(null)
+        driverMarker?.remove()
+    }
+
     override fun onDetach() {
         super.onDetach()
+        isFragmentAttached = false
+        handler.removeCallbacksAndMessages(null)
         driverMarker?.remove()
     }
 }

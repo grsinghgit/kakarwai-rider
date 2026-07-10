@@ -502,9 +502,11 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
     private fun openSearchPlace() {
         val intent = Intent(requireContext(), SearchPlaceActivity::class.java)
-        currentLocation?.let {
-            intent.putExtra("current_location", it)
-        }
+
+        // ✅ If currentLocation is null, use Delhi as default
+        val locationToSend = currentLocation ?: LatLng(28.6139, 77.2090)
+        intent.putExtra("current_location", locationToSend)
+
         startActivityForResult(intent, 100)
     }
 

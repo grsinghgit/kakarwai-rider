@@ -43,7 +43,7 @@
 
         </LinearLayout>
 
-        <!-- User Phone -->
+        <!-- User Info -->
         <TextView
             android:id="@+id/tvUserPhone"
             android:layout_width="wrap_content"
@@ -52,6 +52,14 @@
             android:textSize="12sp"
             android:textColor="@color/grey"
             android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/tvDriverName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🚗 Driver: Not Assigned"
+            android:textSize="12sp"
+            android:textColor="@color/grey" />
 
         <!-- Pickup & Destination -->
         <TextView
@@ -71,7 +79,7 @@
             android:textSize="12sp"
             android:textColor="@color/grey" />
 
-        <!-- ✅ Distances -->
+        <!-- Distances -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -125,66 +133,91 @@
 
         </LinearLayout>
 
-        <!-- ✅ Action Buttons Row -->
+        <!-- ✅ Call & Route Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCall"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:text="📞 Call"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRoute"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:text="🗺️ Route"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+        </LinearLayout>
+
+        <!-- Action Buttons Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginTop="8dp">
 
-            <!-- Call Button -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCall"
+                android:id="@+id/btnAssignDriver"
                 android:layout_width="0dp"
-                android:layout_height="40dp"
+                android:layout_height="32dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="4dp"
-                android:text="📞 Call"
-                app:cornerRadius="8dp"
-                android:textSize="12sp"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                app:icon="@drawable/ic_call"
-                app:iconGravity="textStart" />
+                android:text="Assign"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                app:backgroundTint="@color/blue" />
 
-            <!-- Google Maps Button -->
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnRoute"
+                android:id="@+id/btnCancelRide"
                 android:layout_width="0dp"
-                android:layout_height="40dp"
+                android:layout_height="32dp"
                 android:layout_weight="1"
                 android:layout_marginStart="4dp"
-                android:text="🗺️ Route"
-                app:cornerRadius="8dp"
-                android:textSize="12sp"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                app:icon="@drawable/ic_map"
-                app:iconGravity="textStart" />
+                android:layout_marginEnd="4dp"
+                android:text="Cancel"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                app:backgroundTint="@color/red" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCompleteRide"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:text="Complete"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                app:backgroundTint="@color/green" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReassignDriver"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:text="Reassign"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                app:backgroundTint="@color/orange" />
 
         </LinearLayout>
-
-        <!-- Assign Driver Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAssignDriver"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="8dp"
-            android:text="Assign Driver"
-            app:cornerRadius="8dp"
-            android:textSize="12sp"
-            app:backgroundTint="@color/green"
-            android:visibility="visible" />
-
-        <!-- ✅ Cancel Ride Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCancelRide"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="4dp"
-            android:text="❌ Cancel Ride"
-            app:cornerRadius="8dp"
-            android:textSize="12sp"
-            app:backgroundTint="@color/red"
-            android:visibility="gone" />
 
     </LinearLayout>
 

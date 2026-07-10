@@ -14,13 +14,14 @@
         android:padding="16dp"
         android:gravity="center_vertical">
 
+        <!-- ✅ Back Button - Fixed -->
         <ImageView
+            android:id="@+id/ivBack"
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:src="@drawable/ic_back"
             android:padding="4dp"
-            android:contentDescription="Back"
-            android:onClick="@{() -> navController.popBackStack()}" />
+            android:contentDescription="Back" />
 
         <TextView
             android:layout_width="0dp"

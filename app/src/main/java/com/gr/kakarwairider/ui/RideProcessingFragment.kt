@@ -2,6 +2,8 @@ package com.gr.kakarwairider.ui
 
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -19,6 +21,7 @@ import com.gr.kakarwairider.R
 class RideProcessingFragment : Fragment() {
 
     private val db = FirebaseFirestore.getInstance()
+    private val handler = Handler(Looper.getMainLooper())
 
     private lateinit var tvTimer: TextView
     private lateinit var tvRideId: TextView
@@ -34,6 +37,7 @@ class RideProcessingFragment : Fragment() {
     private lateinit var cardDriverDetails: MaterialCardView
     private lateinit var btnRefresh: MaterialButton
     private lateinit var btnCancel: MaterialButton
+    private lateinit var btnStartRide: MaterialButton
     private lateinit var tvDriverName: TextView
     private lateinit var tvDriverPhone: TextView
     private lateinit var tvDriverVehicle: TextView
@@ -41,6 +45,7 @@ class RideProcessingFragment : Fragment() {
     private var rideId: String? = null
     private var countDownTimer: CountDownTimer? = null
     private var isFragmentAttached = true
+    private var isNavigating = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -63,7 +68,7 @@ class RideProcessingFragment : Fragment() {
             startTimer()
         } else {
             Toast.makeText(requireContext(), "Ride not found", Toast.LENGTH_SHORT).show()
-            findNavController().popBackStack()
+            safePopBack()
         }
 
         setupListeners()
@@ -84,9 +89,66 @@ class RideProcessingFragment : Fragment() {
         cardDriverDetails = view.findViewById(R.id.cardDriverDetails)
         btnRefresh = view.findViewById(R.id.btnRefresh)
         btnCancel = view.findViewById(R.id.btnCancel)
+        btnStartRide = view.findViewById(R.id.btnStartRide)
         tvDriverName = view.findViewById(R.id.tvDriverName)
         tvDriverPhone = view.findViewById(R.id.tvDriverPhone)
         tvDriverVehicle = view.findViewById(R.id.tvDriverVehicle)
+    }
+
+    private fun safePopBack() {
+        if (isNavigating || !isFragmentAttached || !isAdded) return
+        isNavigating = true
+        try {
+            findNavController().popBackStack()
+        } catch (e: Exception) {
+            android.util.Log.e("RideProcessing", "PopBack error: ${e.message}")
+        } finally {
+            handler.postDelayed({
+                isNavigating = false
+            }, 500)
+        }
+    }
+
+    private fun safeNavigateToTracking(bundle: Bundle) {
+        if (isNavigating || !isFragmentAttached || !isAdded) return
+        isNavigating = true
+
+        try {
+            // ✅ Method 1: Try findNavController()
+            val navController = findNavController()
+            navController.navigate(R.id.action_processing_to_tracking, bundle)
+            android.util.Log.d("RideProcessing", "✅ Navigated via action")
+        } catch (e: Exception) {
+            android.util.Log.e("RideProcessing", "Action navigation failed: ${e.message}")
+
+            // ✅ Method 2: Try direct fragment navigation
+            try {
+                val navController = findNavController()
+                navController.navigate(R.id.rideTrackingFragment, bundle)
+                android.util.Log.d("RideProcessing", "✅ Navigated via direct fragment")
+            } catch (e2: Exception) {
+                android.util.Log.e("RideProcessing", "Direct navigation failed: ${e2.message}")
+
+                // ✅ Method 3: Fallback - Activity transaction
+                try {
+                    val fragment = RideTrackingFragment()
+                    fragment.arguments = bundle
+                    requireActivity().supportFragmentManager
+                        .beginTransaction()
+                        .replace(R.id.fragment_container, fragment)
+                        .addToBackStack(null)
+                        .commit()
+                    android.util.Log.d("RideProcessing", "✅ Navigated via Activity transaction")
+                } catch (e3: Exception) {
+                    android.util.Log.e("RideProcessing", "All navigation methods failed: ${e3.message}")
+                    Toast.makeText(requireContext(), "Error opening tracking", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } finally {
+            handler.postDelayed({
+                isNavigating = false
+            }, 500)
+        }
     }
 
     private fun displayRideDetails() {
@@ -129,7 +191,7 @@ class RideProcessingFragment : Fragment() {
             db.collection("rides").document(id)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null || snapshot == null) return@addSnapshotListener
-                    if (!isFragmentAttached) return@addSnapshotListener
+                    if (!isFragmentAttached || !isAdded) return@addSnapshotListener
 
                     val data = snapshot.data ?: return@addSnapshotListener
                     val status = data["status"] as? String ?: "PENDING"
@@ -138,15 +200,13 @@ class RideProcessingFragment : Fragment() {
         }
     }
 
-    // ============================================================
-    // ✅ STATUS UPDATE HANDLER
-    // ============================================================
-
     private fun handleStatusUpdate(status: String, data: Map<String, Any>) {
+        if (!isFragmentAttached || !isAdded) return
+
         when (status) {
             "PENDING", "SEARCHING" -> showSearchingState()
             "DRIVER_ASSIGNED" -> showDriverAssignedState(data)
-            "ACCEPTED" -> onDriverAccepted(data)  // ✅ Driver accept → auto start
+            "ACCEPTED" -> onDriverAccepted(data)
             "STARTED" -> navigateToTracking(data)
             "COMPLETED" -> finishRide("✅ Ride Completed!", R.color.green)
             "REJECTED" -> showRideRejected()
@@ -162,10 +222,10 @@ class RideProcessingFragment : Fragment() {
         progressBar.visibility = View.VISIBLE
         btnCancel.visibility = View.VISIBLE
         cardDriverDetails.visibility = View.GONE
+        btnStartRide.visibility = View.GONE
         tvTimer.visibility = View.VISIBLE
     }
 
-    // ✅ Driver Assigned - Waiting for Approval
     private fun showDriverAssignedState(data: Map<String, Any>) {
         progressBar.visibility = View.VISIBLE
 
@@ -186,11 +246,11 @@ class RideProcessingFragment : Fragment() {
 
         btnCancel.visibility = View.VISIBLE
         tvTimer.visibility = View.VISIBLE
+        btnStartRide.visibility = View.GONE
 
         Toast.makeText(requireContext(), "⏳ Waiting for $driverName to accept", Toast.LENGTH_LONG).show()
     }
 
-    // ✅ Driver Accepted → Auto Start Ride → Navigate to Tracking
     private fun onDriverAccepted(data: Map<String, Any>) {
         countDownTimer?.cancel()
         progressBar.visibility = View.GONE
@@ -202,22 +262,37 @@ class RideProcessingFragment : Fragment() {
 
         Toast.makeText(requireContext(), "🚗 Driver accepted! Ride is starting...", Toast.LENGTH_LONG).show()
 
-        // ✅ Update ride status to STARTED
         rideId?.let { id ->
             db.collection("rides").document(id)
                 .update("status", "STARTED")
                 .addOnSuccessListener {
-                    // ✅ Navigate to tracking after 1 second
-                    tvStatus.postDelayed({
+                    // ✅ Wait for Firestore update then navigate
+                    handler.postDelayed({
                         if (isFragmentAttached && isAdded) {
                             navigateToTracking(data)
                         }
-                    }, 1500)
+                    }, 800)
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(requireContext(), "Failed to start ride: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
         }
     }
 
-    // ✅ Ride Rejected State
+    private fun navigateToTracking(data: Map<String, Any>) {
+        if (!isFragmentAttached || !isAdded || isNavigating) {
+            android.util.Log.d("RideProcessing", "Cannot navigate: fragment not ready")
+            return
+        }
+
+        val bundle = Bundle().apply {
+            putString("rideId", data["rideId"] as? String)
+        }
+
+        android.util.Log.d("RideProcessing", "Navigating to tracking with rideId: ${data["rideId"]}")
+        safeNavigateToTracking(bundle)
+    }
+
     private fun showRideRejected() {
         countDownTimer?.cancel()
         progressBar.visibility = View.GONE
@@ -226,26 +301,13 @@ class RideProcessingFragment : Fragment() {
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
         btnCancel.visibility = View.GONE
         tvTimer.visibility = View.GONE
+        btnStartRide.visibility = View.GONE
 
         Toast.makeText(requireContext(), "Driver rejected the ride. Please try again.", Toast.LENGTH_LONG).show()
 
-        // ✅ Go back after 2 seconds
-        if (isAdded) {
-            tvStatus.postDelayed({
-                if (isAdded) {
-                    findNavController().popBackStack()
-                }
-            }, 2000)
-        }
-    }
-
-    private fun navigateToTracking(data: Map<String, Any>) {
-        if (!isFragmentAttached || !isAdded) return
-
-        val bundle = Bundle().apply {
-            putString("rideId", data["rideId"] as? String)
-        }
-        findNavController().navigate(R.id.action_processing_to_tracking, bundle)
+        handler.postDelayed({
+            safePopBack()
+        }, 2000)
     }
 
     private fun finishRide(message: String, colorRes: Int) {
@@ -257,13 +319,18 @@ class RideProcessingFragment : Fragment() {
         btnCancel.isEnabled = false
         tvTimer.visibility = View.GONE
 
-        if (isAdded) {
-            tvStatus.postDelayed({
-                if (isAdded) {
-                    findNavController().popBackStack()
+        // ✅ Navigate to History Fragment
+        handler.postDelayed({
+            if (isFragmentAttached && isAdded) {
+                try {
+                    findNavController().navigate(R.id.historyFragment)
+                    android.util.Log.d("RideProcessing", "✅ Navigated to History")
+                } catch (e: Exception) {
+                    android.util.Log.e("RideProcessing", "Navigation error: ${e.message}")
+                    safePopBack()
                 }
-            }, 3000)
-        }
+            }
+        }, 2000)
     }
 
     // ============================================================
@@ -325,11 +392,20 @@ class RideProcessingFragment : Fragment() {
         btnCancel.setOnClickListener {
             cancelRide()
         }
-    }
 
-    // ============================================================
-    // ✅ CANCEL RIDE
-    // ============================================================
+        btnStartRide.setOnClickListener {
+            rideId?.let { id ->
+                db.collection("rides").document(id)
+                    .update("status", "STARTED")
+                    .addOnSuccessListener {
+                        Toast.makeText(requireContext(), "🚗 Ride Started!", Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(requireContext(), "Failed to start ride", Toast.LENGTH_SHORT).show()
+                    }
+            }
+        }
+    }
 
     private fun cancelRide() {
         if (!isAdded) return
@@ -340,9 +416,7 @@ class RideProcessingFragment : Fragment() {
                 .addOnSuccessListener {
                     countDownTimer?.cancel()
                     Toast.makeText(requireContext(), "Ride Cancelled", Toast.LENGTH_SHORT).show()
-                    if (isAdded) {
-                        findNavController().popBackStack()
-                    }
+                    safePopBack()
                 }
                 .addOnFailureListener {
                     Toast.makeText(requireContext(), "Failed to cancel ride", Toast.LENGTH_SHORT).show()
@@ -354,5 +428,6 @@ class RideProcessingFragment : Fragment() {
         super.onDestroyView()
         isFragmentAttached = false
         countDownTimer?.cancel()
+        handler.removeCallbacksAndMessages(null)
     }
 }

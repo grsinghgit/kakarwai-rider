@@ -24,6 +24,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.adapter.AdminRideAdapter
 import com.gr.kakarwairider.model.RideModel
 
 class AdminFragment : Fragment(), OnMapReadyCallback {
@@ -133,11 +134,9 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
                     return@addSnapshotListener
                 }
 
-                // ✅ Remove old markers
                 driverMarkers.values.forEach { it.remove() }
                 driverMarkers.clear()
 
-                // ✅ Check if map is ready
                 if (!isMapReady) {
                     return@addSnapshotListener
                 }
@@ -163,7 +162,6 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
                     }
                 }
 
-                // ✅ Move camera to driver location
                 firstLocation?.let {
                     mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it, 14f))
                 }
@@ -171,7 +169,6 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun addDriverMarker(driverId: String, driverName: String, latLng: LatLng) {
-        // ✅ Check if map is ready
         if (!isMapReady) return
 
         val marker = mMap.addMarker(
@@ -190,9 +187,18 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
     // ============================================================
 
     private fun setupRecyclerView() {
-        adapter = AdminRideAdapter(rideList) { ride ->
-            showAssignDriverDialog(ride)
-        }
+        adapter = AdminRideAdapter(
+            rides = rideList,
+            onAssignClick = { ride ->
+                showAssignDriverDialog(ride)
+            },
+            onReassignClick = { ride ->
+                showReassignDriverDialog(ride)
+            },
+            onRefresh = {
+                refreshRides()
+            }
+        )
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
     }
@@ -371,6 +377,86 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
             )
             .addOnSuccessListener {
                 Toast.makeText(requireContext(), "✅ Driver $driverName assigned!", Toast.LENGTH_LONG).show()
+                refreshRides()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    // ============================================================
+    // ✅ REASSIGN DRIVER
+    // ============================================================
+
+    private fun showReassignDriverDialog(ride: RideModel) {
+        db.collection("driver_locations")
+            .whereEqualTo("status", "ONLINE")
+            .get()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty()) {
+                    Toast.makeText(requireContext(), "No online drivers available!", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+
+                val driverNames = mutableListOf<String>()
+                val driverIds = mutableListOf<String>()
+
+                for (doc in documents) {
+                    val name = doc.getString("driverName") ?: "Unknown Driver"
+                    val id = doc.id
+                    // ✅ Exclude current driver
+                    if (id != ride.driverId) {
+                        driverNames.add("🚗 $name")
+                        driverIds.add(id)
+                    }
+                }
+
+                if (driverNames.isEmpty()) {
+                    Toast.makeText(requireContext(), "No other drivers available!", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+
+                val listView = android.widget.ListView(requireContext())
+                val arrayAdapter = android.widget.ArrayAdapter(
+                    requireContext(),
+                    android.R.layout.simple_list_item_1,
+                    driverNames
+                )
+                listView.adapter = arrayAdapter
+
+                val builder = androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                builder.setTitle("Reassign Driver")
+                builder.setMessage("Select new driver for Ride #${ride.rideId.takeLast(8)}")
+                builder.setView(listView)
+                builder.setNegativeButton("Cancel", null)
+
+                val dialog = builder.create()
+                dialog.show()
+
+                listView.setOnItemClickListener { _, _, position, _ ->
+                    val selectedDriverName = driverNames[position]
+                    val selectedDriverId = driverIds[position]
+                    dialog.dismiss()
+                    reassignDriver(ride.rideId, selectedDriverName, selectedDriverId)
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "Failed to load drivers", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun reassignDriver(rideId: String, driverName: String, driverId: String) {
+        db.collection("rides").document(rideId)
+            .update(
+                mapOf(
+                    "driverId" to driverId,
+                    "driverName" to driverName,
+                    "status" to "DRIVER_ASSIGNED",
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+            .addOnSuccessListener {
+                Toast.makeText(requireContext(), "✅ Driver reassigned to $driverName!", Toast.LENGTH_LONG).show()
                 refreshRides()
             }
             .addOnFailureListener { e ->
