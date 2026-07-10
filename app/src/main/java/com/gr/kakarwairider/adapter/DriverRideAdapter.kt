@@ -12,7 +12,8 @@ import com.gr.kakarwairider.model.RideModel
 class DriverRideAdapter(
     private val rides: List<RideModel>,
     private val onAccept: (RideModel) -> Unit,
-    private val onReject: (RideModel) -> Unit
+    private val onReject: (RideModel) -> Unit,
+    private val onCancel: (RideModel) -> Unit  // ✅ Add this
 ) : RecyclerView.Adapter<DriverRideAdapter.RideViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RideViewHolder {

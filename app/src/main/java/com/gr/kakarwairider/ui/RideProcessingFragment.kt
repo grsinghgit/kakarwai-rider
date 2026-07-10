@@ -13,7 +13,6 @@ import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.R
 
@@ -35,14 +34,13 @@ class RideProcessingFragment : Fragment() {
     private lateinit var cardDriverDetails: MaterialCardView
     private lateinit var btnRefresh: MaterialButton
     private lateinit var btnCancel: MaterialButton
-    private lateinit var btnStartRide: MaterialButton
     private lateinit var tvDriverName: TextView
     private lateinit var tvDriverPhone: TextView
     private lateinit var tvDriverVehicle: TextView
 
     private var rideId: String? = null
     private var countDownTimer: CountDownTimer? = null
-    private var isDriverAssigned = false
+    private var isFragmentAttached = true
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -86,7 +84,6 @@ class RideProcessingFragment : Fragment() {
         cardDriverDetails = view.findViewById(R.id.cardDriverDetails)
         btnRefresh = view.findViewById(R.id.btnRefresh)
         btnCancel = view.findViewById(R.id.btnCancel)
-        btnStartRide = view.findViewById(R.id.btnStartRide)
         tvDriverName = view.findViewById(R.id.tvDriverName)
         tvDriverPhone = view.findViewById(R.id.tvDriverPhone)
         tvDriverVehicle = view.findViewById(R.id.tvDriverVehicle)
@@ -99,39 +96,42 @@ class RideProcessingFragment : Fragment() {
                 .addOnSuccessListener { document ->
                     if (document.exists()) {
                         val data = document.data ?: return@addOnSuccessListener
-
-                        val pickup = data["pickup"] as? Map<*, *>
-                        val destination = data["destination"] as? Map<*, *>
-                        val vehicleIcon = data["vehicleIcon"] as? String ?: "🚗"
-                        val vehicleName = data["vehicleName"] as? String ?: "Car"
-                        val distance = data["distance"] as? Double ?: 0.0
-                        val duration = data["duration"] as? Long ?: 0
-                        val totalFare = data["totalFare"] as? Double ?: 0.0
-
-                        tvRideId.text = "Ride ID: ${id.takeLast(8)}"
-                        tvPickup.text = "📍 ${pickup?.get("address") ?: "N/A"}"
-                        tvDestination.text = "🏁 ${destination?.get("address") ?: "N/A"}"
-                        tvDistance.text = "📍 %.1f km".format(distance)
-                        tvDuration.text = "⏱️ %d min".format(duration)
-                        tvVehicle.text = "$vehicleIcon $vehicleName"
-                        tvFare.text = "💰 ₹${totalFare.toInt()}"
-
-                        cardRideDetails.visibility = View.VISIBLE
-
-                        val status = data["status"] as? String ?: "PENDING"
-                        handleStatusUpdate(status, data)
+                        updateUI(data)
                     }
                 }
         }
+    }
+
+    private fun updateUI(data: Map<String, Any>) {
+        val pickup = data["pickup"] as? Map<*, *>
+        val destination = data["destination"] as? Map<*, *>
+        val vehicleIcon = data["vehicleIcon"] as? String ?: "🚗"
+        val vehicleName = data["vehicleName"] as? String ?: "Car"
+        val distance = data["distance"] as? Double ?: 0.0
+        val duration = data["duration"] as? Long ?: 0
+        val totalFare = data["totalFare"] as? Double ?: 0.0
+
+        tvRideId.text = "Ride ID: ${rideId?.takeLast(8)}"
+        tvPickup.text = "📍 ${pickup?.get("address") ?: "N/A"}"
+        tvDestination.text = "🏁 ${destination?.get("address") ?: "N/A"}"
+        tvDistance.text = "📍 %.1f km".format(distance)
+        tvDuration.text = "⏱️ %d min".format(duration)
+        tvVehicle.text = "$vehicleIcon $vehicleName"
+        tvFare.text = "💰 ₹${totalFare.toInt()}"
+        cardRideDetails.visibility = View.VISIBLE
+
+        val status = data["status"] as? String ?: "PENDING"
+        handleStatusUpdate(status, data)
     }
 
     private fun listenForRideUpdates() {
         rideId?.let { id ->
             db.collection("rides").document(id)
                 .addSnapshotListener { snapshot, error ->
-                    if (error != null) return@addSnapshotListener
+                    if (error != null || snapshot == null) return@addSnapshotListener
+                    if (!isFragmentAttached) return@addSnapshotListener
 
-                    val data = snapshot?.data ?: return@addSnapshotListener
+                    val data = snapshot.data ?: return@addSnapshotListener
                     val status = data["status"] as? String ?: "PENDING"
                     handleStatusUpdate(status, data)
                 }
@@ -139,99 +139,131 @@ class RideProcessingFragment : Fragment() {
     }
 
     // ============================================================
-    // ✅ HANDLE STATUS UPDATE
+    // ✅ STATUS UPDATE HANDLER
     // ============================================================
 
     private fun handleStatusUpdate(status: String, data: Map<String, Any>) {
         when (status) {
-            "PENDING", "SEARCHING" -> showSearchingState(data)
-            "DRIVER_ASSIGNED", "ACCEPTED" -> showDriverAssignedState(data)
+            "PENDING", "SEARCHING" -> showSearchingState()
+            "DRIVER_ASSIGNED" -> showDriverAssignedState(data)
+            "ACCEPTED" -> onDriverAccepted(data)  // ✅ Driver accept → auto start
             "STARTED" -> navigateToTracking(data)
-            "COMPLETED", "CANCELLED", "EXPIRED" -> finishRide(status, data)
+            "COMPLETED" -> finishRide("✅ Ride Completed!", R.color.green)
+            "REJECTED" -> showRideRejected()
+            "CANCELLED" -> finishRide("❌ Ride Cancelled", R.color.red)
+            "EXPIRED" -> finishRide("⏰ Time Expired!", R.color.red)
+            else -> showSearchingState()
         }
     }
 
-    private fun showSearchingState(data: Map<String, Any>) {
+    private fun showSearchingState() {
         tvStatus.text = "⏳ Searching for a driver..."
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
         progressBar.visibility = View.VISIBLE
-
         btnCancel.visibility = View.VISIBLE
-        btnStartRide.visibility = View.GONE
         cardDriverDetails.visibility = View.GONE
-
-        if (countDownTimer == null) {
-            startTimer()
-        }
+        tvTimer.visibility = View.VISIBLE
     }
 
-    // ✅ UPDATED: Driver Assigned State with Navigation to Tracking
+    // ✅ Driver Assigned - Waiting for Approval
     private fun showDriverAssignedState(data: Map<String, Any>) {
-        isDriverAssigned = true
-        progressBar.visibility = View.GONE
-        countDownTimer?.cancel()
+        progressBar.visibility = View.VISIBLE
 
-        tvStatus.text = "✅ Driver Assigned!"
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+        tvStatus.text = "⏳ Waiting for Driver Approval..."
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
 
-        // ✅ Show driver details
         val driverName = data["driverName"] as? String ?: "Unknown"
         val driverPhone = data["driverPhone"] as? String ?: "N/A"
         val driverVehicle = data["driverVehicle"] as? String ?: "Car"
         val driverVehicleNumber = data["driverVehicleNumber"] as? String ?: "N/A"
+        val totalFare = data["totalFare"] as? Double ?: 0.0
 
         tvDriverName.text = "🚗 $driverName"
         tvDriverPhone.text = "📱 $driverPhone"
         tvDriverVehicle.text = "🚙 $driverVehicle | $driverVehicleNumber"
-
-        // ✅ Show fare
-        val totalFare = data["totalFare"] as? Double ?: 0.0
         tvFare.text = "💰 Total Fare: ₹${totalFare.toInt()}"
-
-        // ✅ Show Start Ride button, hide Cancel
-        btnCancel.visibility = View.GONE
-        btnStartRide.visibility = View.VISIBLE
-        btnStartRide.isEnabled = true
         cardDriverDetails.visibility = View.VISIBLE
 
-        tvTimer.text = "🚗 Driver is on the way!"
+        btnCancel.visibility = View.VISIBLE
+        tvTimer.visibility = View.VISIBLE
 
-        Toast.makeText(requireContext(), "🚗 Driver $driverName assigned!", Toast.LENGTH_LONG).show()
+        Toast.makeText(requireContext(), "⏳ Waiting for $driverName to accept", Toast.LENGTH_LONG).show()
+    }
 
-        // ✅ Navigate to Tracking after 2 seconds
-        tvTimer.postDelayed({
-            navigateToTracking(data)
-        }, 2000)
+    // ✅ Driver Accepted → Auto Start Ride → Navigate to Tracking
+    private fun onDriverAccepted(data: Map<String, Any>) {
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+        btnCancel.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+
+        tvStatus.text = "✅ Driver Accepted! Ride Starting..."
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+
+        Toast.makeText(requireContext(), "🚗 Driver accepted! Ride is starting...", Toast.LENGTH_LONG).show()
+
+        // ✅ Update ride status to STARTED
+        rideId?.let { id ->
+            db.collection("rides").document(id)
+                .update("status", "STARTED")
+                .addOnSuccessListener {
+                    // ✅ Navigate to tracking after 1 second
+                    tvStatus.postDelayed({
+                        if (isFragmentAttached && isAdded) {
+                            navigateToTracking(data)
+                        }
+                    }, 1500)
+                }
+        }
+    }
+
+    // ✅ Ride Rejected State
+    private fun showRideRejected() {
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+
+        tvStatus.text = "❌ Driver Rejected the Ride"
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+        btnCancel.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+
+        Toast.makeText(requireContext(), "Driver rejected the ride. Please try again.", Toast.LENGTH_LONG).show()
+
+        // ✅ Go back after 2 seconds
+        if (isAdded) {
+            tvStatus.postDelayed({
+                if (isAdded) {
+                    findNavController().popBackStack()
+                }
+            }, 2000)
+        }
     }
 
     private fun navigateToTracking(data: Map<String, Any>) {
+        if (!isFragmentAttached || !isAdded) return
+
         val bundle = Bundle().apply {
             putString("rideId", data["rideId"] as? String)
         }
         findNavController().navigate(R.id.action_processing_to_tracking, bundle)
     }
 
-    private fun finishRide(status: String, data: Map<String, Any>) {
+    private fun finishRide(message: String, colorRes: Int) {
         countDownTimer?.cancel()
         progressBar.visibility = View.GONE
 
-        when (status) {
-            "COMPLETED" -> {
-                tvStatus.text = "✅ Ride Completed!"
-                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
-            }
-            "CANCELLED" -> {
-                tvStatus.text = "❌ Ride Cancelled"
-                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-            }
-            "EXPIRED" -> {
-                tvStatus.text = "⏰ Time Expired!"
-                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-            }
-        }
-
+        tvStatus.text = message
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
         btnCancel.isEnabled = false
-        btnStartRide.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+
+        if (isAdded) {
+            tvStatus.postDelayed({
+                if (isAdded) {
+                    findNavController().popBackStack()
+                }
+            }, 3000)
+        }
     }
 
     // ============================================================
@@ -249,12 +281,17 @@ class RideProcessingFragment : Fragment() {
 
         countDownTimer = object : CountDownTimer(timeLeft, 1000) {
             override fun onTick(millisUntilFinished: Long) {
+                if (!isFragmentAttached) {
+                    cancel()
+                    return
+                }
                 val minutes = millisUntilFinished / 60000
                 val seconds = (millisUntilFinished % 60000) / 1000
                 tvTimer.text = "⏳ ${minutes}m ${seconds}s remaining"
             }
 
             override fun onFinish() {
+                if (!isFragmentAttached) return
                 tvTimer.text = "⏰ Time Expired!"
                 rideId?.let { id ->
                     db.collection("rides").document(id)
@@ -282,27 +319,11 @@ class RideProcessingFragment : Fragment() {
                             Toast.makeText(requireContext(), "Status refreshed", Toast.LENGTH_SHORT).show()
                         }
                     }
-                    .addOnFailureListener {
-                        Toast.makeText(requireContext(), "Failed to refresh", Toast.LENGTH_SHORT).show()
-                    }
             }
         }
 
         btnCancel.setOnClickListener {
             cancelRide()
-        }
-
-        btnStartRide.setOnClickListener {
-            rideId?.let { id ->
-                db.collection("rides").document(id)
-                    .update("status", "STARTED")
-                    .addOnSuccessListener {
-                        Toast.makeText(requireContext(), "🚗 Ride Started!", Toast.LENGTH_SHORT).show()
-                    }
-                    .addOnFailureListener {
-                        Toast.makeText(requireContext(), "Failed to start ride", Toast.LENGTH_SHORT).show()
-                    }
-            }
         }
     }
 
@@ -311,13 +332,17 @@ class RideProcessingFragment : Fragment() {
     // ============================================================
 
     private fun cancelRide() {
+        if (!isAdded) return
+
         rideId?.let { id ->
             db.collection("rides").document(id)
                 .update("status", "CANCELLED")
                 .addOnSuccessListener {
                     countDownTimer?.cancel()
                     Toast.makeText(requireContext(), "Ride Cancelled", Toast.LENGTH_SHORT).show()
-                    findNavController().popBackStack()
+                    if (isAdded) {
+                        findNavController().popBackStack()
+                    }
                 }
                 .addOnFailureListener {
                     Toast.makeText(requireContext(), "Failed to cancel ride", Toast.LENGTH_SHORT).show()
@@ -327,6 +352,7 @@ class RideProcessingFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        isFragmentAttached = false
         countDownTimer?.cancel()
     }
 }

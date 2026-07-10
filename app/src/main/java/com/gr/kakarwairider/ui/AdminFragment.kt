@@ -133,9 +133,11 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
                     return@addSnapshotListener
                 }
 
+                // ✅ Remove old markers
                 driverMarkers.values.forEach { it.remove() }
                 driverMarkers.clear()
 
+                // ✅ Check if map is ready
                 if (!isMapReady) {
                     return@addSnapshotListener
                 }
@@ -161,6 +163,7 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
                     }
                 }
 
+                // ✅ Move camera to driver location
                 firstLocation?.let {
                     mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(it, 14f))
                 }
@@ -168,6 +171,7 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun addDriverMarker(driverId: String, driverName: String, latLng: LatLng) {
+        // ✅ Check if map is ready
         if (!isMapReady) return
 
         val marker = mMap.addMarker(
@@ -326,14 +330,11 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
         driverIds: List<String>,
         driverDistances: List<String>
     ) {
-        android.util.Log.d("AdminFragment", "🔔 showAssignDriverListDialog with ${driverNames.size} drivers")
-
         if (driverNames.isEmpty()) {
             Toast.makeText(requireContext(), "No drivers available", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // ✅ Use ListView instead of setItems()
         val listView = android.widget.ListView(requireContext())
         val arrayAdapter = android.widget.ArrayAdapter(
             requireContext(),
@@ -353,11 +354,11 @@ class AdminFragment : Fragment(), OnMapReadyCallback {
         listView.setOnItemClickListener { _, _, position, _ ->
             val selectedDriverName = driverNames[position]
             val selectedDriverId = driverIds[position]
-            android.util.Log.d("AdminFragment", "✅ Selected: $selectedDriverName")
             dialog.dismiss()
             assignDriver(ride.rideId, selectedDriverName, selectedDriverId)
         }
     }
+
     private fun assignDriver(rideId: String, driverName: String, driverId: String) {
         db.collection("rides").document(rideId)
             .update(

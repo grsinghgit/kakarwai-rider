@@ -61,7 +61,6 @@ class DriverDashboardFragment : Fragment() {
 
         android.util.Log.d("DriverDashboard", "📌 SharedPref driverId: $driverId")
 
-        // ✅ Check null using local variable
         val id = driverId
         if (id == null || id.isEmpty()) {
             Toast.makeText(requireContext(), "Please login again", Toast.LENGTH_SHORT).show()
@@ -89,18 +88,53 @@ class DriverDashboardFragment : Fragment() {
         adapter = DriverRideAdapter(
             rides = rideList,
             onAccept = { ride ->
-                updateRideStatus(ride.rideId, "ACCEPTED")
+                updateRideStatus(ride, "ACCEPTED")
             },
             onReject = { ride ->
-                updateRideStatus(ride.rideId, "REJECTED")
+                updateRideStatus(ride, "REJECTED")
+            },
+            onCancel = { ride ->
+                showCancelDialog(ride.rideId, "driver")
             }
         )
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
     }
 
+    // ============================================================
+    // ✅ CANCEL RIDE
+    // ============================================================
+
+    private fun showCancelDialog(rideId: String, cancelledBy: String) {
+        val dialog = CancelRideDialog(rideId) { reason ->
+            cancelRide(rideId, cancelledBy, reason)
+        }
+        dialog.show(childFragmentManager, "CancelRideDialog")
+    }
+
+    private fun cancelRide(rideId: String, cancelledBy: String, reason: String) {
+        db.collection("rides").document(rideId)
+            .update(
+                mapOf(
+                    "status" to "CANCELLED",
+                    "cancelledBy" to cancelledBy,
+                    "cancelReason" to reason,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+            .addOnSuccessListener {
+                Toast.makeText(requireContext(), "✅ Ride Cancelled: $reason", Toast.LENGTH_LONG).show()
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    // ============================================================
+    // ✅ LISTEN FOR RIDES
+    // ============================================================
+
     private fun listenForRides() {
-        // ✅ Local variable for smart cast
         val id = driverId
         if (id == null || id.isEmpty()) {
             return
@@ -121,16 +155,63 @@ class DriverDashboardFragment : Fragment() {
             }
     }
 
-    private fun updateRideStatus(rideId: String, status: String) {
-        db.collection("rides").document(rideId)
-            .update("status", status)
-            .addOnSuccessListener {
-                Toast.makeText(requireContext(), "✅ Ride $status", Toast.LENGTH_SHORT).show()
+    // ============================================================
+    // ✅ UPDATE RIDE STATUS (ACCEPT/REJECT)
+    // ============================================================
+
+    private fun updateRideStatus(ride: RideModel, status: String) {
+        val id = driverId
+        if (id == null || id.isEmpty()) {
+            Toast.makeText(requireContext(), "Driver ID not found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // ✅ Get driver details for ACCEPTED status
+        db.collection("drivers").document(id)
+            .get()
+            .addOnSuccessListener { driverDoc ->
+                val driverName = driverDoc.getString("name") ?: "Unknown"
+                val driverPhone = driverDoc.getString("phone") ?: "N/A"
+                val vehicleType = driverDoc.getString("vehicleType") ?: "Car"
+                val vehicleModel = driverDoc.getString("vehicleModel") ?: ""
+                val vehicleNumber = driverDoc.getString("vehicleNumber") ?: "N/A"
+                val vehicleInfo = if (vehicleModel.isNotEmpty()) "$vehicleType $vehicleModel" else vehicleType
+
+                val updates = mutableMapOf<String, Any>(
+                    "status" to status,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+
+                // ✅ If ACCEPTED, fill driver details
+                if (status == "ACCEPTED") {
+                    updates["driverName"] = driverName
+                    updates["driverPhone"] = driverPhone
+                    updates["driverVehicle"] = vehicleInfo
+                    updates["driverVehicleNumber"] = vehicleNumber
+                }
+
+                db.collection("rides").document(ride.rideId)
+                    .update(updates)
+                    .addOnSuccessListener {
+                        val message = if (status == "ACCEPTED") {
+                            "✅ Ride Accepted! Driver details updated."
+                        } else {
+                            "❌ Ride Rejected"
+                        }
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
             }
-            .addOnFailureListener { e ->
-                Toast.makeText(requireContext(), "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            .addOnFailureListener {
+                Toast.makeText(requireContext(), "Failed to load driver details", Toast.LENGTH_SHORT).show()
             }
     }
+
+    // ============================================================
+    // ✅ LOCATION PERMISSION
+    // ============================================================
 
     private fun hasLocationPermission(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -170,6 +251,10 @@ class DriverDashboardFragment : Fragment() {
         }
     }
 
+    // ============================================================
+    // ✅ ONLINE/OFFLINE TOGGLE
+    // ============================================================
+
     private fun toggleOnlineStatus() {
         android.util.Log.d("DriverDashboard", "🔄 toggleOnlineStatus called, isOnline: $isOnline")
 
@@ -179,7 +264,6 @@ class DriverDashboardFragment : Fragment() {
             updateDriverStatus(false)
             Toast.makeText(requireContext(), "🔴 You are offline", Toast.LENGTH_SHORT).show()
         } else {
-            // ✅ Local variable for smart cast
             val driverIdLocal = driverId
             android.util.Log.d("DriverDashboard", "📌 driverIdLocal: $driverIdLocal")
 
@@ -206,7 +290,6 @@ class DriverDashboardFragment : Fragment() {
     }
 
     private fun updateDriverStatus(online: Boolean) {
-        // ✅ Local variable for smart cast
         val id = driverId
         if (id == null || id.isEmpty()) {
             return
@@ -238,8 +321,11 @@ class DriverDashboardFragment : Fragment() {
         }
     }
 
+    // ============================================================
+    // ✅ LOAD DRIVER DETAILS
+    // ============================================================
+
     private fun loadDriverDetails() {
-        // ✅ Local variable for smart cast
         val id = driverId
         if (id == null || id.isEmpty()) {
             return
