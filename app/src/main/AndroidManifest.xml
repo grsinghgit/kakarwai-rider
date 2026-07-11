@@ -2,20 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.gr.kakarwairider">
-
     <!-- Internet Permission -->
-    <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Network State -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-    <!-- Location Permissions -->
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- Network State -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Location Permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!-- Foreground Service Permissions -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />  <!-- ✅ Android 14+ -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />  <!-- Android 13+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" /> <!-- ✅ Android 14+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -27,54 +21,43 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KakarwaiRider"
         tools:targetApi="31">
-
+        <activity
+            android:name=".admin.AdminActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KakarwaiRider" />
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/google_maps_key" />
-
-        <!-- Places API Key -->
+            android:value="@string/google_maps_key" /> <!-- Places API Key -->
         <meta-data
             android:name="com.google.android.libraries.places.PLACES_API_KEY"
-            android:value="@string/google_maps_key" />
-
-        <!-- ✅ SplashActivity - LAUNCHER -->
+            android:value="@string/google_maps_key" /> <!-- ✅ SplashActivity - LAUNCHER -->
         <activity
             android:name=".SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.KakarwaiRider">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-
-        <!-- ✅ MainActivity -->
+        </activity> <!-- ✅ MainActivity -->
         <activity
             android:name=".MainActivity"
-            android:exported="false" />
-
-        <!-- ✅ MainActivity2 -->
+            android:exported="false" /> <!-- ✅ MainActivity2 -->
         <activity
             android:name=".MainActivity2"
-            android:exported="false" />
-
-        <!-- ✅ SearchPlaceActivity -->
+            android:exported="false" /> <!-- ✅ SearchPlaceActivity -->
         <activity
             android:name=".SearchPlaceActivity"
-            android:exported="false" />
-
-        <!-- ✅ MapPickerActivity -->
+            android:exported="false" /> <!-- ✅ MapPickerActivity -->
         <activity
             android:name=".MapPickerActivity"
-            android:exported="false" />
-
-        <!-- ✅ Driver Location Service -->
+            android:exported="false" /> <!-- ✅ Driver Location Service -->
         <service
             android:name=".service.DriverLocationService"
             android:exported="false"
             android:foregroundServiceType="location" />
-
     </application>
 
 </manifest>

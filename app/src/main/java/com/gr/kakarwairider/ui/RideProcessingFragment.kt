@@ -10,12 +10,14 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.firestore.FirebaseFirestore
+import com.gr.kakarwairider.MainActivity2
 import com.gr.kakarwairider.R
 
 class RideProcessingFragment : Fragment() {
@@ -46,6 +48,7 @@ class RideProcessingFragment : Fragment() {
     private var countDownTimer: CountDownTimer? = null
     private var isFragmentAttached = true
     private var isNavigating = false
+    private var isRideFinished = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,7 +61,22 @@ class RideProcessingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        if (isRideFinished) {
+            return
+        }
+
         initViews(view)
+
+        (requireActivity() as? MainActivity2)?.hideBottomNav(true)
+
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    Toast.makeText(requireContext(), "⏳ Ride is being processed!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
 
         rideId = arguments?.getString("rideId")
 
@@ -68,7 +86,7 @@ class RideProcessingFragment : Fragment() {
             startTimer()
         } else {
             Toast.makeText(requireContext(), "Ride not found", Toast.LENGTH_SHORT).show()
-            safePopBack()
+            goToHome()
         }
 
         setupListeners()
@@ -95,13 +113,21 @@ class RideProcessingFragment : Fragment() {
         tvDriverVehicle = view.findViewById(R.id.tvDriverVehicle)
     }
 
-    private fun safePopBack() {
+    private fun showToast(message: String) {
+        if (isAdded && isFragmentAttached) {
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun goToHome() {
         if (isNavigating || !isFragmentAttached || !isAdded) return
         isNavigating = true
         try {
-            findNavController().popBackStack()
+            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+            (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
+            findNavController().navigate(R.id.homeFragment)
         } catch (e: Exception) {
-            android.util.Log.e("RideProcessing", "PopBack error: ${e.message}")
+            android.util.Log.e("RideProcessing", "Navigate error: ${e.message}")
         } finally {
             handler.postDelayed({
                 isNavigating = false
@@ -109,41 +135,15 @@ class RideProcessingFragment : Fragment() {
         }
     }
 
-    private fun safeNavigateToTracking(bundle: Bundle) {
+    private fun goToHistory() {
         if (isNavigating || !isFragmentAttached || !isAdded) return
         isNavigating = true
-
         try {
-            // ✅ Method 1: Try findNavController()
-            val navController = findNavController()
-            navController.navigate(R.id.action_processing_to_tracking, bundle)
-            android.util.Log.d("RideProcessing", "✅ Navigated via action")
+            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+            (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
+            findNavController().navigate(R.id.historyFragment)
         } catch (e: Exception) {
-            android.util.Log.e("RideProcessing", "Action navigation failed: ${e.message}")
-
-            // ✅ Method 2: Try direct fragment navigation
-            try {
-                val navController = findNavController()
-                navController.navigate(R.id.rideTrackingFragment, bundle)
-                android.util.Log.d("RideProcessing", "✅ Navigated via direct fragment")
-            } catch (e2: Exception) {
-                android.util.Log.e("RideProcessing", "Direct navigation failed: ${e2.message}")
-
-                // ✅ Method 3: Fallback - Activity transaction
-                try {
-                    val fragment = RideTrackingFragment()
-                    fragment.arguments = bundle
-                    requireActivity().supportFragmentManager
-                        .beginTransaction()
-                        .replace(R.id.fragment_container, fragment)
-                        .addToBackStack(null)
-                        .commit()
-                    android.util.Log.d("RideProcessing", "✅ Navigated via Activity transaction")
-                } catch (e3: Exception) {
-                    android.util.Log.e("RideProcessing", "All navigation methods failed: ${e3.message}")
-                    Toast.makeText(requireContext(), "Error opening tracking", Toast.LENGTH_SHORT).show()
-                }
-            }
+            android.util.Log.e("RideProcessing", "Navigate error: ${e.message}")
         } finally {
             handler.postDelayed({
                 isNavigating = false
@@ -191,7 +191,7 @@ class RideProcessingFragment : Fragment() {
             db.collection("rides").document(id)
                 .addSnapshotListener { snapshot, error ->
                     if (error != null || snapshot == null) return@addSnapshotListener
-                    if (!isFragmentAttached || !isAdded) return@addSnapshotListener
+                    if (!isFragmentAttached || !isAdded || isRideFinished) return@addSnapshotListener
 
                     val data = snapshot.data ?: return@addSnapshotListener
                     val status = data["status"] as? String ?: "PENDING"
@@ -201,7 +201,7 @@ class RideProcessingFragment : Fragment() {
     }
 
     private fun handleStatusUpdate(status: String, data: Map<String, Any>) {
-        if (!isFragmentAttached || !isAdded) return
+        if (!isFragmentAttached || !isAdded || isRideFinished) return
 
         when (status) {
             "PENDING", "SEARCHING" -> showSearchingState()
@@ -210,8 +210,8 @@ class RideProcessingFragment : Fragment() {
             "STARTED" -> navigateToTracking(data)
             "COMPLETED" -> finishRide("✅ Ride Completed!", R.color.green)
             "REJECTED" -> showRideRejected()
-            "CANCELLED" -> finishRide("❌ Ride Cancelled", R.color.red)
-            "EXPIRED" -> finishRide("⏰ Time Expired!", R.color.red)
+            "CANCELLED" -> showCancelledState()
+            "EXPIRED" -> showExpiredState()
             else -> showSearchingState()
         }
     }
@@ -221,14 +221,13 @@ class RideProcessingFragment : Fragment() {
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
         progressBar.visibility = View.VISIBLE
         btnCancel.visibility = View.VISIBLE
-        cardDriverDetails.visibility = View.GONE
         btnStartRide.visibility = View.GONE
+        cardDriverDetails.visibility = View.GONE
         tvTimer.visibility = View.VISIBLE
     }
 
     private fun showDriverAssignedState(data: Map<String, Any>) {
         progressBar.visibility = View.VISIBLE
-
         tvStatus.text = "⏳ Waiting for Driver Approval..."
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
 
@@ -245,92 +244,168 @@ class RideProcessingFragment : Fragment() {
         cardDriverDetails.visibility = View.VISIBLE
 
         btnCancel.visibility = View.VISIBLE
-        tvTimer.visibility = View.VISIBLE
         btnStartRide.visibility = View.GONE
+        tvTimer.visibility = View.VISIBLE
 
-        Toast.makeText(requireContext(), "⏳ Waiting for $driverName to accept", Toast.LENGTH_LONG).show()
+        showToast("⏳ Waiting for $driverName to accept")
     }
 
     private fun onDriverAccepted(data: Map<String, Any>) {
         countDownTimer?.cancel()
         progressBar.visibility = View.GONE
         btnCancel.visibility = View.GONE
+        btnStartRide.visibility = View.GONE
         tvTimer.visibility = View.GONE
 
         tvStatus.text = "✅ Driver Accepted! Ride Starting..."
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
 
-        Toast.makeText(requireContext(), "🚗 Driver accepted! Ride is starting...", Toast.LENGTH_LONG).show()
+        showToast("🚗 Driver accepted! Ride is starting...")
 
         rideId?.let { id ->
             db.collection("rides").document(id)
                 .update("status", "STARTED")
                 .addOnSuccessListener {
-                    // ✅ Wait for Firestore update then navigate
                     handler.postDelayed({
-                        if (isFragmentAttached && isAdded) {
+                        if (isFragmentAttached && isAdded && !isRideFinished) {
                             navigateToTracking(data)
                         }
                     }, 800)
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(requireContext(), "Failed to start ride: ${e.message}", Toast.LENGTH_SHORT).show()
+                    showToast("Failed to start ride: ${e.message}")
                 }
         }
     }
 
+    // ✅ FIXED: Navigation to Tracking
     private fun navigateToTracking(data: Map<String, Any>) {
-        if (!isFragmentAttached || !isAdded || isNavigating) {
+        if (!isFragmentAttached || !isAdded || isNavigating || isRideFinished) {
             android.util.Log.d("RideProcessing", "Cannot navigate: fragment not ready")
             return
         }
 
+        isNavigating = true
         val bundle = Bundle().apply {
             putString("rideId", data["rideId"] as? String)
         }
 
-        android.util.Log.d("RideProcessing", "Navigating to tracking with rideId: ${data["rideId"]}")
-        safeNavigateToTracking(bundle)
+        try {
+            android.util.Log.d("RideProcessing", "Navigating to tracking with rideId: ${data["rideId"]}")
+
+            // ✅ Try findNavController()
+            val navController = findNavController()
+            navController.navigate(R.id.action_processing_to_tracking, bundle)
+            android.util.Log.d("RideProcessing", "✅ Navigation successful via action")
+
+        } catch (e: Exception) {
+            android.util.Log.e("RideProcessing", "Navigation error: ${e.message}")
+
+            // ✅ Try direct fragment navigation
+            try {
+                val navController = findNavController()
+                navController.navigate(R.id.rideTrackingFragment, bundle)
+                android.util.Log.d("RideProcessing", "✅ Navigation successful via direct fragment")
+            } catch (e2: Exception) {
+                android.util.Log.e("RideProcessing", "Fallback error: ${e2.message}")
+
+                // ✅ Activity transaction fallback
+                try {
+                    val fragment = RideTrackingFragment()
+                    fragment.arguments = bundle
+                    requireActivity().supportFragmentManager
+                        .beginTransaction()
+                        .replace(R.id.fragment_container, fragment)
+                        .addToBackStack(null)
+                        .commit()
+                    android.util.Log.d("RideProcessing", "✅ Navigation successful via activity transaction")
+                } catch (e3: Exception) {
+                    android.util.Log.e("RideProcessing", "All navigation methods failed: ${e3.message}")
+                    Toast.makeText(requireContext(), "Error opening tracking", Toast.LENGTH_SHORT).show()
+                    goToHome()
+                }
+            }
+        } finally {
+            handler.postDelayed({
+                isNavigating = false
+            }, 500)
+        }
     }
 
     private fun showRideRejected() {
         countDownTimer?.cancel()
         progressBar.visibility = View.GONE
-
         tvStatus.text = "❌ Driver Rejected the Ride"
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
         btnCancel.visibility = View.GONE
-        tvTimer.visibility = View.GONE
         btnStartRide.visibility = View.GONE
+        tvTimer.visibility = View.GONE
 
-        Toast.makeText(requireContext(), "Driver rejected the ride. Please try again.", Toast.LENGTH_LONG).show()
-
+        showToast("Driver rejected the ride. Please try again.")
         handler.postDelayed({
-            safePopBack()
+            goToHome()
         }, 2000)
     }
 
-    private fun finishRide(message: String, colorRes: Int) {
+    private fun showCancelledState() {
+        if (isRideFinished) return
+        isRideFinished = true
+
         countDownTimer?.cancel()
         progressBar.visibility = View.GONE
+        btnCancel.visibility = View.GONE
+        btnStartRide.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+
+        tvStatus.text = "❌ Ride Cancelled"
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+
+        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+        (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
+
+        showToast("Ride Cancelled")
+        goToHome()
+    }
+
+    private fun showExpiredState() {
+        if (isRideFinished) return
+        isRideFinished = true
+
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+        btnCancel.visibility = View.GONE
+        btnStartRide.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+
+        tvStatus.text = "⏰ Time Expired!"
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+
+        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+        (requireActivity() as? MainActivity2)?.onRideStatusChanged("EXPIRED")
+
+        showToast("Time expired! Please book a new ride.")
+        goToHome()
+    }
+
+    private fun finishRide(message: String, colorRes: Int) {
+        if (isRideFinished) return
+
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+        btnCancel.isEnabled = false
+        btnCancel.visibility = View.GONE
+        btnStartRide.visibility = View.GONE
+        tvTimer.visibility = View.GONE
 
         tvStatus.text = message
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
-        btnCancel.isEnabled = false
-        tvTimer.visibility = View.GONE
 
-        // ✅ Navigate to History Fragment
+        (requireActivity() as? MainActivity2)?.onRideStatusChanged("COMPLETED")
+
         handler.postDelayed({
-            if (isFragmentAttached && isAdded) {
-                try {
-                    findNavController().navigate(R.id.historyFragment)
-                    android.util.Log.d("RideProcessing", "✅ Navigated to History")
-                } catch (e: Exception) {
-                    android.util.Log.e("RideProcessing", "Navigation error: ${e.message}")
-                    safePopBack()
-                }
-            }
-        }, 2000)
+            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+            goToHistory()
+        }, 1500)
     }
 
     // ============================================================
@@ -358,13 +433,12 @@ class RideProcessingFragment : Fragment() {
             }
 
             override fun onFinish() {
-                if (!isFragmentAttached) return
-                tvTimer.text = "⏰ Time Expired!"
+                if (!isFragmentAttached || isRideFinished) return
                 rideId?.let { id ->
                     db.collection("rides").document(id)
                         .update("status", "EXPIRED")
                 }
-                Toast.makeText(requireContext(), "Time expired! Please try again.", Toast.LENGTH_SHORT).show()
+                showExpiredState()
             }
         }.start()
     }
@@ -383,7 +457,7 @@ class RideProcessingFragment : Fragment() {
                             val data = document.data ?: return@addOnSuccessListener
                             val status = data["status"] as? String ?: "PENDING"
                             handleStatusUpdate(status, data)
-                            Toast.makeText(requireContext(), "Status refreshed", Toast.LENGTH_SHORT).show()
+                            showToast("Status refreshed")
                         }
                     }
             }
@@ -392,34 +466,22 @@ class RideProcessingFragment : Fragment() {
         btnCancel.setOnClickListener {
             cancelRide()
         }
-
-        btnStartRide.setOnClickListener {
-            rideId?.let { id ->
-                db.collection("rides").document(id)
-                    .update("status", "STARTED")
-                    .addOnSuccessListener {
-                        Toast.makeText(requireContext(), "🚗 Ride Started!", Toast.LENGTH_SHORT).show()
-                    }
-                    .addOnFailureListener {
-                        Toast.makeText(requireContext(), "Failed to start ride", Toast.LENGTH_SHORT).show()
-                    }
-            }
-        }
     }
 
     private fun cancelRide() {
-        if (!isAdded) return
+        if (isRideFinished || !isAdded) return
 
         rideId?.let { id ->
             db.collection("rides").document(id)
                 .update("status", "CANCELLED")
                 .addOnSuccessListener {
                     countDownTimer?.cancel()
-                    Toast.makeText(requireContext(), "Ride Cancelled", Toast.LENGTH_SHORT).show()
-                    safePopBack()
+                    showCancelledState()
                 }
-                .addOnFailureListener {
-                    Toast.makeText(requireContext(), "Failed to cancel ride", Toast.LENGTH_SHORT).show()
+                .addOnFailureListener { e ->
+                    if (isAdded && isFragmentAttached) {
+                        Toast.makeText(requireContext(), "Failed to cancel ride: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
                 }
         }
     }

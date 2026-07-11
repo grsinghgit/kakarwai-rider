@@ -23,6 +23,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.MainActivity2
 
 class RideTrackingFragment : Fragment(), OnMapReadyCallback {
 
@@ -78,10 +79,6 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
         val mapFragment = childFragmentManager.findFragmentById(R.id.mapFragment) as? SupportMapFragment
         if (mapFragment != null) {
             mapFragment.getMapAsync(this)
-        } else {
-            Toast.makeText(requireContext(), "Map error", Toast.LENGTH_SHORT).show()
-            safePopBack()
-            return
         }
 
         listenForRideUpdates()
@@ -90,29 +87,8 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
             showCancelDialog()
         }
 
-        // ✅ Back button on toolbar handle
         view.findViewById<View>(R.id.ivBack)?.setOnClickListener {
             safePopBack()
-        }
-    }
-
-    override fun onMapReady(googleMap: GoogleMap) {
-        mMap = googleMap
-        isMapReady = true
-        mMap.uiSettings.isZoomControlsEnabled = true
-        mMap.uiSettings.isMyLocationButtonEnabled = true
-
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED) {
-            mMap.isMyLocationEnabled = true
-        }
-
-        rideDataMap?.let {
-            handler.postDelayed({
-                if (isFragmentAttached && isAdded) {
-                    updateMapWithLocations()
-                }
-            }, 200)
         }
     }
 
@@ -133,6 +109,26 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
             handler.postDelayed({
                 isNavigating = false
             }, 500)
+        }
+    }
+
+    override fun onMapReady(googleMap: GoogleMap) {
+        mMap = googleMap
+        isMapReady = true
+        mMap.uiSettings.isZoomControlsEnabled = true
+        mMap.uiSettings.isMyLocationButtonEnabled = true
+
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED) {
+            mMap.isMyLocationEnabled = true
+        }
+
+        rideDataMap?.let {
+            handler.postDelayed({
+                if (isFragmentAttached && isAdded) {
+                    updateMapWithLocations()
+                }
+            }, 200)
         }
     }
 
@@ -234,9 +230,22 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
                     tvStatus.text = "✅ Ride Completed"
                     tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
                     btnCancelRide.visibility = View.GONE
+
+                    // ✅ Notify MainActivity2
+                    (requireActivity() as? MainActivity2)?.onRideStatusChanged("COMPLETED")
+
                     Toast.makeText(requireContext(), "Ride Completed! Thank you.", Toast.LENGTH_LONG).show()
+
+                    // ✅ Navigate to History after 2 seconds
                     handler.postDelayed({
-                        safePopBack()
+                        if (isAdded && isFragmentAttached) {
+                            try {
+                                findNavController().navigate(R.id.historyFragment)
+                            } catch (e: Exception) {
+                                android.util.Log.e("RideTracking", "Navigate error: ${e.message}")
+                                safePopBack()
+                            }
+                        }
                     }, 2000)
                 }
             }
@@ -246,6 +255,7 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
                     tvStatus.text = "❌ Ride Cancelled"
                     tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
                     btnCancelRide.visibility = View.GONE
+                    (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
                     safePopBack()
                 }
             }
@@ -416,6 +426,7 @@ class RideTrackingFragment : Fragment(), OnMapReadyCallback {
             )
             .addOnSuccessListener {
                 if (isAdded) {
+                    (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
                     Toast.makeText(requireContext(), "✅ Ride Cancelled: $reason", Toast.LENGTH_LONG).show()
                     safePopBack()
                 }

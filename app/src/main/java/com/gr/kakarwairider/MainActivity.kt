@@ -20,6 +20,7 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
+import com.gr.kakarwairider.admin.AdminActivity
 
 class MainActivity : AppCompatActivity() {
 
@@ -69,7 +70,8 @@ class MainActivity : AppCompatActivity() {
                     val isAdminLoggedIn = sharedPref.getBoolean("isAdminLoggedIn", false)
 
                     if (isAdminLoggedIn) {
-                        navController.navigate(R.id.adminFragment)
+                        // ✅ Navigate to new AdminActivity
+                        startActivity(Intent(this, AdminActivity::class.java))
                     } else {
                         navController.navigate(R.id.adminLoginFragment)
                     }

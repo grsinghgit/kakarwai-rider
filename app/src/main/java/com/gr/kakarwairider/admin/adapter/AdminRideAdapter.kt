@@ -1,15 +1,13 @@
-package com.gr.kakarwairider.ui
+package com.gr.kakarwairider.admin.adapter
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
-import androidx.fragment.app.FragmentActivity
+import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.google.firebase.firestore.FirebaseFirestore
@@ -22,7 +20,9 @@ import kotlin.math.sqrt
 
 class AdminRideAdapter(
     private val rides: List<RideModel>,
-    private val onAssignClick: (RideModel) -> Unit
+    private val onAssignClick: (RideModel) -> Unit,
+    private val onReassignClick: (RideModel) -> Unit,
+    private val onRefresh: () -> Unit
 ) : RecyclerView.Adapter<AdminRideAdapter.RideViewHolder>() {
 
     private val db = FirebaseFirestore.getInstance()
@@ -70,6 +70,7 @@ class AdminRideAdapter(
         private val tvRideId: TextView = itemView.findViewById(R.id.tvRideId)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
         private val tvUserPhone: TextView = itemView.findViewById(R.id.tvUserPhone)
+        private val tvDriverName: TextView = itemView.findViewById(R.id.tvDriverName)
         private val tvPickup: TextView = itemView.findViewById(R.id.tvPickup)
         private val tvDestination: TextView = itemView.findViewById(R.id.tvDestination)
         private val tvFare: TextView = itemView.findViewById(R.id.tvFare)
@@ -77,14 +78,17 @@ class AdminRideAdapter(
         private val tvDistanceCenterToPickup: TextView = itemView.findViewById(R.id.tvDistanceCenterToPickup)
         private val tvDistancePickupToDest: TextView = itemView.findViewById(R.id.tvDistancePickupToDest)
         private val btnAssign: MaterialButton = itemView.findViewById(R.id.btnAssignDriver)
+        private val btnCancel: MaterialButton = itemView.findViewById(R.id.btnCancelRide)
+        private val btnComplete: MaterialButton = itemView.findViewById(R.id.btnCompleteRide)
+        private val btnReassign: MaterialButton = itemView.findViewById(R.id.btnReassignDriver)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCall)
         private val btnRoute: MaterialButton = itemView.findViewById(R.id.btnRoute)
-        private val btnCancelRide: MaterialButton = itemView.findViewById(R.id.btnCancelRide)
 
         fun bind(ride: RideModel) {
             tvRideId.text = "Ride #${ride.rideId.takeLast(8)}"
             tvStatus.text = ride.status
             tvUserPhone.text = "📱 ${ride.userPhone}"
+            tvDriverName.text = "🚗 ${ride.driverName ?: "Not Assigned"}"
             tvPickup.text = "📍 ${ride.pickup?.address ?: "N/A"}"
             tvDestination.text = "🏁 ${ride.destination?.address ?: "N/A"}"
             tvFare.text = "💰 ₹${ride.totalFare.toInt()}"
@@ -92,7 +96,10 @@ class AdminRideAdapter(
 
             val statusColor = when (ride.status) {
                 "PENDING" -> itemView.context.getColor(R.color.orange)
-                "DRIVER_ASSIGNED" -> itemView.context.getColor(R.color.green)
+                "DRIVER_ASSIGNED", "ACCEPTED" -> itemView.context.getColor(R.color.blue)
+                "STARTED" -> itemView.context.getColor(R.color.green)
+                "COMPLETED" -> itemView.context.getColor(R.color.green)
+                "CANCELLED" -> itemView.context.getColor(R.color.red)
                 else -> itemView.context.getColor(R.color.grey)
             }
             tvStatus.setTextColor(statusColor)
@@ -109,7 +116,7 @@ class AdminRideAdapter(
             tvDistanceCenterToPickup.text = "📏 Center→Pickup: %.2f km".format(distCenterToPickup)
             tvDistancePickupToDest.text = "📏 Pickup→Dest: %.2f km".format(distPickupToDest)
 
-            // Call Button
+            // ✅ Call Button
             btnCall.setOnClickListener {
                 val phoneNumber = ride.userPhone
                 if (phoneNumber.isNotEmpty()) {
@@ -122,7 +129,7 @@ class AdminRideAdapter(
                 }
             }
 
-            // Route Button
+            // ✅ Route Button
             btnRoute.setOnClickListener {
                 val centerLat = areaCenterLat
                 val centerLng = areaCenterLng
@@ -141,57 +148,62 @@ class AdminRideAdapter(
                 }
             }
 
-            // Cancel Ride Button
-            if (ride.status == "PENDING") {
-                btnCancelRide.visibility = View.VISIBLE
-                btnCancelRide.setOnClickListener {
-                    showCancelReasonDialog(ride)
+            // ✅ Status-based button visibility
+            when (ride.status) {
+                "PENDING" -> {
+                    btnAssign.visibility = View.VISIBLE
+                    btnCancel.visibility = View.VISIBLE
+                    btnComplete.visibility = View.GONE
+                    btnReassign.visibility = View.GONE
+                    btnAssign.setOnClickListener { onAssignClick(ride) }
+                    btnCancel.setOnClickListener { showCancelDialog(ride) }
                 }
-            } else {
-                btnCancelRide.visibility = View.GONE
-            }
-
-            // Assign Driver Button
-            if (ride.status != "PENDING") {
-                btnAssign.visibility = View.GONE
-            } else {
-                btnAssign.visibility = View.VISIBLE
-                btnAssign.setOnClickListener {
-                    onAssignClick(ride)
+                "DRIVER_ASSIGNED", "ACCEPTED" -> {
+                    btnAssign.visibility = View.GONE
+                    btnCancel.visibility = View.VISIBLE
+                    btnComplete.visibility = View.GONE
+                    btnReassign.visibility = View.VISIBLE
+                    btnCancel.setOnClickListener { showCancelDialog(ride) }
+                    btnReassign.setOnClickListener { onReassignClick(ride) }
+                }
+                "STARTED" -> {
+                    btnAssign.visibility = View.GONE
+                    btnCancel.visibility = View.VISIBLE
+                    btnComplete.visibility = View.VISIBLE
+                    btnReassign.visibility = View.GONE
+                    btnCancel.setOnClickListener { showCancelDialog(ride) }
+                    btnComplete.setOnClickListener { completeRide(ride) }
+                }
+                else -> {
+                    btnAssign.visibility = View.GONE
+                    btnCancel.visibility = View.GONE
+                    btnComplete.visibility = View.GONE
+                    btnReassign.visibility = View.GONE
                 }
             }
         }
 
-        // ✅ Cancel with Reason Dialog
-        private fun showCancelReasonDialog(ride: RideModel) {
-            val builder = AlertDialog.Builder(itemView.context)
-            builder.setTitle("❌ Cancel Ride")
-            builder.setMessage("Enter reason for cancelling Ride #${ride.rideId.takeLast(8)}")
+        private fun showCancelDialog(ride: RideModel) {
+            val reasons = arrayOf(
+                "Driver not available",
+                "User not reachable",
+                "Vehicle issue",
+                "Weather conditions",
+                "Technical issue",
+                "Other"
+            )
 
-            val input = EditText(itemView.context)
-            input.hint = "Enter cancel reason..."
-            input.setSingleLine(false)
-            input.setLines(3)
-            builder.setView(input)
-
-            builder.setPositiveButton("✅ Submit") { dialog, _ ->
-                val reason = input.text.toString().trim()
-                if (reason.isEmpty()) {
-                    Toast.makeText(itemView.context, "Please enter a reason", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
+            AlertDialog.Builder(itemView.context)
+                .setTitle("Cancel Ride")
+                .setMessage("Select reason for cancelling Ride #${ride.rideId.takeLast(8)}")
+                .setItems(reasons) { _, which ->
+                    val reason = reasons[which]
+                    cancelRide(ride, reason)
                 }
-                cancelRide(ride, reason)
-                dialog.dismiss()
-            }
-
-            builder.setNegativeButton("Cancel") { dialog, _ ->
-                dialog.dismiss()
-            }
-
-            builder.show()
+                .setNegativeButton("Cancel", null)
+                .show()
         }
 
-        // ✅ Cancel Ride - Fixed Navigation
         private fun cancelRide(ride: RideModel, reason: String) {
             db.collection("rides").document(ride.rideId)
                 .update(
@@ -204,21 +216,36 @@ class AdminRideAdapter(
                 )
                 .addOnSuccessListener {
                     Toast.makeText(itemView.context, "✅ Ride cancelled! Reason: $reason", Toast.LENGTH_LONG).show()
-
-                    // ✅ SAFE NAVIGATION - Refresh AdminFragment
-                    try {
-                        val activity = itemView.context as? FragmentActivity
-                        activity?.supportFragmentManager?.beginTransaction()
-                            ?.replace(R.id.nav_host_fragment, AdminFragment())
-                            ?.commit()
-                    } catch (e: Exception) {
-                        // Fallback: Just refresh the adapter data
-                        Toast.makeText(itemView.context, "Refresh the page to see updates", Toast.LENGTH_SHORT).show()
-                    }
+                    onRefresh()
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(itemView.context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+        }
+
+        private fun completeRide(ride: RideModel) {
+            AlertDialog.Builder(itemView.context)
+                .setTitle("Complete Ride")
+                .setMessage("Are you sure you want to complete Ride #${ride.rideId.takeLast(8)}?")
+                .setPositiveButton("Yes") { _, _ ->
+                    db.collection("rides").document(ride.rideId)
+                        .update(
+                            mapOf(
+                                "status" to "COMPLETED",
+                                "completedAt" to com.google.firebase.Timestamp.now(),
+                                "updatedAt" to com.google.firebase.Timestamp.now()
+                            )
+                        )
+                        .addOnSuccessListener {
+                            Toast.makeText(itemView.context, "✅ Ride Completed!", Toast.LENGTH_LONG).show()
+                            onRefresh()
+                        }
+                        .addOnFailureListener { e ->
+                            Toast.makeText(itemView.context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
     }
 }

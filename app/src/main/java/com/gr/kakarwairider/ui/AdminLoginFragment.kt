@@ -13,6 +13,8 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.admin.AdminActivity
+import android.content.Intent
 
 class AdminLoginFragment : Fragment() {
 
@@ -52,8 +54,7 @@ class AdminLoginFragment : Fragment() {
         }
 
         btnBack.setOnClickListener {
-            // ✅ Go back to login screen using NavController
-            findNavController().navigate(R.id.action_admin_login_to_home)
+            findNavController().popBackStack()
         }
     }
 
@@ -78,8 +79,9 @@ class AdminLoginFragment : Fragment() {
 
                     Toast.makeText(requireContext(), "✅ Admin Login Successful!", Toast.LENGTH_SHORT).show()
 
-                    // ✅ Navigate to AdminFragment using NavController
-                    findNavController().navigate(R.id.action_admin_login_to_admin)
+                    // ✅ Navigate to AdminActivity
+                    startActivity(Intent(requireContext(), AdminActivity::class.java))
+                    requireActivity().finish()
                 }
             }
             .addOnFailureListener { e ->
