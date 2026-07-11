@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="6dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- Header: Ride ID + Status + Time -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvRideId"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Ride #ABC123"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PENDING"
+                android:textSize="11sp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="@drawable/bg_status_pending" />
+
+        </LinearLayout>
+
+        <!-- User + Driver Info -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/tvUserPhone"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📱 User: +91..."
+                android:textSize="12sp"
+                android:textColor="@color/grey" />
+
+            <TextView
+                android:id="@+id/tvDriverName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🚗 Driver: Not Assigned"
+                android:textSize="12sp"
+                android:textColor="@color/grey" />
+
+        </LinearLayout>
+
+        <!-- Pickup & Destination -->
+        <TextView
+            android:id="@+id/tvPickup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📍 Pickup: Connaught Place"
+            android:textSize="12sp"
+            android:textColor="@color/grey"
+            android:layout_marginTop="2dp" />
+
+        <TextView
+            android:id="@+id/tvDestination"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🏁 Destination: India Gate"
+            android:textSize="12sp"
+            android:textColor="@color/grey" />
+
+        <!-- Vehicle + Fare -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/tvVehicle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🚗 Car"
+                android:textSize="12sp"
+                android:textColor="@color/grey" />
+
+            <TextView
+                android:id="@+id/tvFare"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="💰 ₹236"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary" />
+
+        </LinearLayout>
+
+        <!-- Cancel Reason (if cancelled) -->
+        <TextView
+            android:id="@+id/tvCancelReason"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="❌ Reason: Driver not available"
+            android:textSize="12sp"
+            android:textColor="@color/red"
+            android:visibility="gone"
+            android:layout_marginTop="2dp" />
+
+        <!-- Timeline -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/tvTimeline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📅 Booking: 10:30 AM → Assigned: 10:35 AM"
+                android:textSize="10sp"
+                android:textColor="@color/grey" />
+
+        </LinearLayout>
+
+        <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <!-- Call -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCall"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="2dp"
+                android:text="📞"
+                app:cornerRadius="6dp"
+                android:textSize="14sp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            <!-- Route -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRoute"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:text="🗺️"
+                app:cornerRadius="6dp"
+                android:textSize="14sp"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            <!-- Assign -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAssign"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:text="Assign"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                app:backgroundTint="@color/blue" />
+
+            <!-- Reassign -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnReassign"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:text="Reassign"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                app:backgroundTint="@color/orange"
+                android:visibility="gone" />
+
+            <!-- Complete -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnComplete"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:text="Complete"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                app:backgroundTint="@color/green"
+                android:visibility="gone" />
+
+            <!-- Cancel -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCancel"
+                android:layout_width="0dp"
+                android:layout_height="32dp"
+                android:layout_weight="1"
+                android:layout_marginStart="2dp"
+                android:text="Cancel"
+                app:cornerRadius="6dp"
+                android:textSize="10sp"
+                app:backgroundTint="@color/red" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

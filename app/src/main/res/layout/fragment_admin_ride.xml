@@ -4,36 +4,130 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:background="@color/white"
     android:padding="8dp">
 
+    <!-- Stats Row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnPending"
+        <TextView
+            android:id="@+id/tvTotalRides"
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Pending"
-            app:cornerRadius="8dp"
-            android:backgroundTint="@color/primary" />
+            android:text="📊 Total: 0"
+            android:textSize="12sp"
+            android:textColor="@color/grey" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAll"
+        <TextView
+            android:id="@+id/tvPendingRides"
             android:layout_width="0dp"
-            android:layout_height="40dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="All"
-            app:cornerRadius="8dp"
-            style="@style/Widget.Material3.Button.OutlinedButton" />
+            android:text="🟠 Pending: 0"
+            android:textSize="12sp"
+            android:textColor="@color/orange" />
+
+        <TextView
+            android:id="@+id/tvActiveRides"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🟢 Active: 0"
+            android:textSize="12sp"
+            android:textColor="@color/green" />
+
+        <TextView
+            android:id="@+id/tvEarnings"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="💰 ₹0"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary" />
 
     </LinearLayout>
 
+    <!-- Filter Chips -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleSelection="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipAll"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="All"
+                android:checked="true" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipPending"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Pending" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipAssigned"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Assigned" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipStarted"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Started" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipCompleted"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Completed" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipCancelled"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancelled" />
+
+        </com.google.android.material.chip.ChipGroup>
+
+    </HorizontalScrollView>
+
+    <!-- Ride List -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- Empty State -->
+    <TextView
+        android:id="@+id/tvEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:text="No rides found"
+        android:textSize="16sp"
+        android:textColor="@color/grey"
+        android:gravity="center"
+        android:visibility="gone" />
 
 </LinearLayout>

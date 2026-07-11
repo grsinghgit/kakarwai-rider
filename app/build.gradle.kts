@@ -113,4 +113,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     // GridLayout (for 2-column grid)
     implementation("androidx.gridlayout:gridlayout:1.0.0")
+    // ✅ Coroutines with Play Services (for Firestore await())
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 }

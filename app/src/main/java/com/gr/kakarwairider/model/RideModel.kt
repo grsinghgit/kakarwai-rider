@@ -39,12 +39,15 @@ data class RideModel(
 
     val paymentMethod: String = "CASH",
     val paymentStatus: String = "PENDING",
-    val cancelReason: String? = null,  // ✅ Add this
-    val cancelledBy: String? = null,   // ✅ Add this (admin/user)
+    val cancelReason: String? = null,
+    val cancelledBy: String? = null,
 
     val createdAt: Timestamp? = null,
     val updatedAt: Timestamp? = null,
-    val expiresAt: Timestamp? = null
+    val expiresAt: Timestamp? = null,
+
+    // ✅ NEW FIELD – Ride completion timestamp
+    val completedAt: Timestamp? = null
 )
 
 data class LocationData(

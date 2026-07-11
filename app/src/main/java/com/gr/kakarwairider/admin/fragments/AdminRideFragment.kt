@@ -4,23 +4,32 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.button.MaterialButton
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ktx.toObject
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import com.gr.kakarwairider.R
 import com.gr.kakarwairider.admin.adapter.AdminRideAdapter
+import com.gr.kakarwairider.admin.viewmodel.AdminRideViewModel
 import com.gr.kakarwairider.model.RideModel
 
 class AdminRideFragment : Fragment() {
 
     private lateinit var recyclerView: RecyclerView
+    private lateinit var tvEmpty: TextView
+    private lateinit var tvTotalRides: TextView
+    private lateinit var tvPendingRides: TextView
+    private lateinit var tvActiveRides: TextView
+    private lateinit var tvEarnings: TextView
+    private lateinit var chipGroup: ChipGroup
     private lateinit var adapter: AdminRideAdapter
-    private val db = FirebaseFirestore.getInstance()
-    private val rideList = mutableListOf<RideModel>()
-    private var currentFilter = "PENDING"
+
+    private val viewModel: AdminRideViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -33,58 +42,114 @@ class AdminRideFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        recyclerView = view.findViewById(R.id.recyclerView)
-        val btnPending = view.findViewById<MaterialButton>(R.id.btnPending)
-        val btnAll = view.findViewById<MaterialButton>(R.id.btnAll)
-
+        initViews(view)
         setupRecyclerView()
-        loadRides(currentFilter)
+        setupObservers()
+        setupChips()
 
-        btnPending.setOnClickListener {
-            currentFilter = "PENDING"
-            loadRides(currentFilter)
-            btnPending.setBackgroundColor(resources.getColor(R.color.primary))
-            btnAll.setBackgroundColor(0x00000000)
-        }
+        viewModel.applyFilter()
+    }
 
-        btnAll.setOnClickListener {
-            currentFilter = "ALL"
-            loadRides(currentFilter)
-            btnAll.setBackgroundColor(resources.getColor(R.color.primary))
-            btnPending.setBackgroundColor(0x00000000)
-        }
+    private fun initViews(view: View) {
+        recyclerView = view.findViewById(R.id.recyclerView)
+        tvEmpty = view.findViewById(R.id.tvEmpty)
+        tvTotalRides = view.findViewById(R.id.tvTotalRides)
+        tvPendingRides = view.findViewById(R.id.tvPendingRides)
+        tvActiveRides = view.findViewById(R.id.tvActiveRides)
+        tvEarnings = view.findViewById(R.id.tvEarnings)
+        chipGroup = view.findViewById(R.id.chipGroup)
     }
 
     private fun setupRecyclerView() {
         adapter = AdminRideAdapter(
-            rides = rideList,
-            onAssignClick = { /* Assign logic */ },
-            onReassignClick = { /* Reassign logic */ },
-            onRefresh = { loadRides(currentFilter) }
+            rides = emptyList(),
+            availableDrivers = emptyList(),
+            onAssign = { ride, driverId, driverName ->
+                viewModel.assignDriver(ride.rideId, driverId, driverName)
+            },
+            onReassign = { ride, driverId, driverName ->
+                viewModel.reassignDriver(ride.rideId, driverId, driverName)
+            },
+            onCancel = { ride, reason ->
+                viewModel.cancelRide(ride.rideId, reason)
+            },
+            onComplete = { ride ->
+                viewModel.completeRide(ride.rideId)
+            }
         )
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = adapter
     }
 
-    private fun loadRides(filter: String) {
-        var query = db.collection("rides")
-            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+    private fun setupObservers() {
+        // ✅ Filtered Rides
+        viewModel.filteredRides.observe(viewLifecycleOwner, Observer { rides ->
+            updateAdapter(rides)
+            tvEmpty.visibility = if (rides.isEmpty()) View.VISIBLE else View.GONE
+        })
 
-        if (filter == "PENDING") {
-            query = query.whereEqualTo("status", "PENDING")
-        }
+        // ✅ Stats
+        viewModel.stats.observe(viewLifecycleOwner, Observer { stats ->
+            tvTotalRides.text = "📊 Total: ${stats.totalRides}"
+            tvPendingRides.text = "🟠 Pending: ${stats.pendingRides}"
+            tvActiveRides.text = "🟢 Active: ${stats.activeRides}"
+            tvEarnings.text = "💰 ₹${stats.todayEarnings.toInt()}"
+        })
 
-        query.get()
-            .addOnSuccessListener { documents ->
-                rideList.clear()
-                for (doc in documents) {
-                    val ride = doc.toObject(RideModel::class.java)
-                    rideList.add(ride)
+        // ✅ Available Drivers
+        viewModel.availableDrivers.observe(viewLifecycleOwner, Observer { drivers ->
+            updateAdapter(viewModel.filteredRides.value ?: emptyList(), drivers)
+        })
+
+        // ✅ Loading
+        viewModel.isLoading.observe(viewLifecycleOwner, Observer { loading ->
+            // Show/hide progress bar if needed
+        })
+
+        // ✅ Error
+        viewModel.errorMessage.observe(viewLifecycleOwner, Observer { error ->
+            error?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                viewModel.clearError()
+            }
+        })
+    }
+
+    private fun setupChips() {
+        chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.isNotEmpty()) {
+                val chip = chipGroup.findViewById<Chip>(checkedIds[0])
+                val status = when (chip?.id) {
+                    R.id.chipAll -> "ALL"
+                    R.id.chipPending -> "PENDING"
+                    R.id.chipAssigned -> "ASSIGNED"
+                    R.id.chipStarted -> "STARTED"
+                    R.id.chipCompleted -> "COMPLETED"
+                    R.id.chipCancelled -> "CANCELLED"
+                    else -> "ALL"
                 }
-                adapter.notifyDataSetChanged()
+                viewModel.applyFilter(status = status)
             }
-            .addOnFailureListener {
-                // Handle error
+        }
+    }
+
+    private fun updateAdapter(rides: List<RideModel>, drivers: List<com.gr.kakarwairider.admin.repository.DriverInfo> = viewModel.availableDrivers.value ?: emptyList()) {
+        adapter = AdminRideAdapter(
+            rides = rides,
+            availableDrivers = drivers,
+            onAssign = { ride, driverId, driverName ->
+                viewModel.assignDriver(ride.rideId, driverId, driverName)
+            },
+            onReassign = { ride, driverId, driverName ->
+                viewModel.reassignDriver(ride.rideId, driverId, driverName)
+            },
+            onCancel = { ride, reason ->
+                viewModel.cancelRide(ride.rideId, reason)
+            },
+            onComplete = { ride ->
+                viewModel.completeRide(ride.rideId)
             }
+        )
+        recyclerView.adapter = adapter
     }
 }
