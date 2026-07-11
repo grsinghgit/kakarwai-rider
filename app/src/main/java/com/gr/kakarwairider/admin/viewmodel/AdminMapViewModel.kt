@@ -41,13 +41,28 @@ class AdminMapViewModel : ViewModel() {
     }
 
     private fun loadAdminArea() {
-        val adminId = auth.currentUser?.uid
-        if (adminId != null) {
-            repository.getAdminArea(adminId) { area ->
-                areaId = area
-                if (area != null) {
-                    loadRides(area)
-                }
+        // 🔥 TODO: Production mein Firebase Auth UID use karein
+        // val adminId = auth.currentUser?.uid
+        // android.util.Log.d("AdminMapVM", "👤 Admin ID from Firebase Auth: $adminId")
+
+        // ✅ Abhi ke liye manual admin ID use karein (test ke liye)
+        val adminId = "admin_uid_123"
+        android.util.Log.d("AdminMapVM", "👤 Using manual Admin ID: $adminId")
+
+        if (adminId.isBlank()) {
+            android.util.Log.e("AdminMapVM", "❌ No admin ID configured!")
+            _errorMessage.value = "Admin ID not configured"
+            return
+        }
+
+        repository.getAdminArea(adminId) { area ->
+            areaId = area
+            android.util.Log.d("AdminMapVM", "📍 Area ID: $areaId")
+            if (area != null) {
+                loadRides(area)
+            } else {
+                android.util.Log.e("AdminMapVM", "❌ No area found for admin: $adminId")
+                _errorMessage.value = "No area assigned to this admin"
             }
         }
     }
@@ -80,7 +95,6 @@ class AdminMapViewModel : ViewModel() {
         )
     }
 
-    // ✅ Load rides by area
     fun loadRides(areaId: String) {
         repository.getRidesByArea(
             areaId = areaId,

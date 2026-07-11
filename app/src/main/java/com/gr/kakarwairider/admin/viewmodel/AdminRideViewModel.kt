@@ -46,54 +46,49 @@ class AdminRideViewModel : ViewModel() {
     }
 
     private fun loadAdminArea() {
-        val adminId = auth.currentUser?.uid
-        android.util.Log.d("AdminRideVM", "👤 Admin ID: $adminId")
+        // 🔥 TODO: Production mein Firebase Auth UID use karein
+        // val adminId = auth.currentUser?.uid
+        // android.util.Log.d("AdminRideVM", "👤 Admin ID from Firebase Auth: $adminId")
 
-        if (adminId != null) {
-            viewModelScope.launch {
-                try {
-                    val doc = FirebaseFirestore.getInstance()
-                        .collection("admins").document(adminId).get().await()
+        // ✅ Abhi ke liye manual admin ID use karein (test ke liye)
+        val adminId = "admin_uid_123"
+        android.util.Log.d("AdminRideVM", "👤 Using manual Admin ID: $adminId")
 
-                    // ✅ Get areaId with proper null/empty check
-                    val areaIdFromFirestore = doc.getString("areaId")
-                    android.util.Log.d("AdminRideVM", "📍 Raw areaId from Firestore: '$areaIdFromFirestore'")
+        if (adminId.isBlank()) {
+            android.util.Log.e("AdminRideVM", "❌ No admin ID configured!")
+            _errorMessage.value = "Admin ID not configured"
+            return
+        }
 
-                    // ✅ Check if areaId is not null and not empty
-                    if (!areaIdFromFirestore.isNullOrBlank()) {
-                        areaId = areaIdFromFirestore
-                        android.util.Log.d("AdminRideVM", "✅ Area ID set: $areaId")
-                    } else {
-                        android.util.Log.w("AdminRideVM", "⚠️ areaId is null or empty!")
+        viewModelScope.launch {
+            try {
+                val doc = FirebaseFirestore.getInstance()
+                    .collection("admins").document(adminId).get().await()
 
-                        // ✅ Try to find area where adminId matches
-                        val areaDoc = FirebaseFirestore.getInstance()
-                            .collection("areas")
-                            .whereEqualTo("adminId", adminId)
-                            .get()
-                            .await()
+                if (!doc.exists()) {
+                    android.util.Log.e("AdminRideVM", "❌ Admin document not found for ID: $adminId")
+                    _errorMessage.value = "Admin profile not found. Please contact super admin."
+                    return@launch
+                }
 
-                        if (areaDoc.documents.isNotEmpty()) {
-                            areaId = areaDoc.documents.first().id
-                            android.util.Log.d("AdminRideVM", "📍 Found area from areas collection: $areaId")
-                        } else {
-                            // ✅ Final fallback - hardcoded
-                            android.util.Log.w("AdminRideVM", "⚠️ No area found, using hardcoded test area")
-                            areaId = "area_kakarwai"
-                        }
-                    }
+                val areaIdFromFirestore = doc.getString("areaId")
+                android.util.Log.d("AdminRideVM", "📍 Raw areaId from Firestore: '$areaIdFromFirestore'")
 
-                    if (areaId != null) {
-                        loadRides()
-                    } else {
-                        android.util.Log.e("AdminRideVM", "❌ No areaId found anywhere!")
-                        _errorMessage.value = "No area assigned to this admin"
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("AdminRideVM", "❌ Error: ${e.message}")
-                    areaId = "a"
+                if (!areaIdFromFirestore.isNullOrBlank()) {
+                    areaId = areaIdFromFirestore
+                    android.util.Log.d("AdminRideVM", "✅ Area ID set: $areaId")
+                } else {
+                    android.util.Log.w("AdminRideVM", "⚠️ areaId is null or empty!")
+                    _errorMessage.value = "No area assigned to this admin"
+                    return@launch
+                }
+
+                if (areaId != null) {
                     loadRides()
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("AdminRideVM", "❌ Error: ${e.message}")
+                _errorMessage.value = "Failed to load admin area: ${e.message}"
             }
         }
     }
