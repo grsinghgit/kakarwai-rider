@@ -1,6 +1,7 @@
 package com.gr.kakarwairider.ui
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -8,11 +9,11 @@ import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.driver.DriverActivity
 
 class DriverLoginFragment : Fragment() {
 
@@ -72,19 +73,22 @@ class DriverLoginFragment : Fragment() {
                     return@addOnSuccessListener
                 }
 
-                // ✅ Login success
                 val doc = documents.first()
                 val driverId = doc.id
                 val driverName = doc.getString("name") ?: "Driver"
 
                 // ✅ Save driver session
                 val sharedPref = requireActivity().getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
-                sharedPref.edit().putString("driverId", driverId).apply()
+                sharedPref.edit()
+                    .putString("driverId", driverId)
+                    .putBoolean("isDriverLoggedIn", true)
+                    .apply()
 
                 Toast.makeText(requireContext(), "✅ Welcome $driverName!", Toast.LENGTH_LONG).show()
 
-                // ✅ Navigate to Driver Dashboard
-                findNavController().navigate(R.id.action_driver_login_to_dashboard)
+                // ✅ Navigate to NEW DriverActivity
+                startActivity(Intent(requireContext(), DriverActivity::class.java))
+                requireActivity().finish()
             }
             .addOnFailureListener { e ->
                 showError("Error: ${e.message}")
@@ -96,5 +100,6 @@ class DriverLoginFragment : Fragment() {
     private fun showError(message: String) {
         tvError.text = message
         tvError.visibility = View.VISIBLE
+        etPIN.text?.clear()
     }
 }

@@ -22,10 +22,13 @@
         android:theme="@style/Theme.KakarwaiRider"
         tools:targetApi="31">
         <activity
-            android:name=".admin.AdminActivity"
+            android:name=".driver.DriverActivity"
             android:exported="false"
             android:theme="@style/Theme.KakarwaiRider" />
-        <!-- Google Maps API Key -->
+        <activity
+            android:name=".admin.AdminActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KakarwaiRider" /> <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" /> <!-- Places API Key -->

@@ -21,6 +21,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.gr.kakarwairider.admin.AdminActivity
+import com.gr.kakarwairider.driver.DriverActivity
 
 class MainActivity : AppCompatActivity() {
 
@@ -46,7 +47,6 @@ class MainActivity : AppCompatActivity() {
 
         val appBarConfiguration = AppBarConfiguration(
             setOf(
-                R.id.driverLoginFragment,  // ✅ Changed from driverFragment
                 R.id.homeFragment,
                 R.id.driverLoginFragment,
                 R.id.vendorFragment,
@@ -58,27 +58,34 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
         bottomNav.setupWithNavController(navController)
 
-        // ✅ Update UI based on login status
         updateUIBasedOnLoginStatus()
 
-        // ✅ Set bottom navigation item selected listener for admin login check
         bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.adminFragment -> {
-                    // ✅ Check if admin already logged in
                     val sharedPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
                     val isAdminLoggedIn = sharedPref.getBoolean("isAdminLoggedIn", false)
 
                     if (isAdminLoggedIn) {
-                        // ✅ Navigate to new AdminActivity
                         startActivity(Intent(this, AdminActivity::class.java))
                     } else {
                         navController.navigate(R.id.adminLoginFragment)
                     }
                     true
                 }
+                R.id.driverLoginFragment -> {
+                    // ✅ Check if driver already logged in
+                    val driverPref = getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
+                    val isDriverLoggedIn = driverPref.getBoolean("isDriverLoggedIn", false)
+
+                    if (isDriverLoggedIn) {
+                        startActivity(Intent(this, DriverActivity::class.java))
+                    } else {
+                        navController.navigate(R.id.driverLoginFragment)
+                    }
+                    true
+                }
                 else -> {
-                    // ✅ Default navigation for other items
                     navController.navigate(item.itemId)
                     true
                 }
@@ -100,9 +107,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun logout() {
-        // ✅ Clear admin login state on logout
-        val sharedPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
-        sharedPref.edit().clear().apply()
+        // ✅ Clear all login states
+        val adminPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
+        adminPref.edit().clear().apply()
+
+        val driverPref = getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
+        driverPref.edit().clear().apply()
 
         FirebaseAuth.getInstance().signOut()
         updateUIBasedOnLoginStatus()

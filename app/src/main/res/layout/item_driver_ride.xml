@@ -3,10 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp"
+    android:layout_margin="6dp"
     app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
-    app:cardBackgroundColor="@color/white">
+    app:cardElevation="2dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,7 +13,7 @@
         android:orientation="vertical"
         android:padding="12dp">
 
-        <!-- Ride ID & Status -->
+        <!-- Header -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -33,42 +32,63 @@
                 android:id="@+id/tvStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="ASSIGNED"
+                android:text="PENDING"
                 android:textSize="12sp"
-                android:textColor="@color/orange" />
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="@drawable/bg_status_driver_ride" />
 
         </LinearLayout>
 
-        <!-- Pickup & Destination -->
+        <!-- Pickup -->
         <TextView
             android:id="@+id/tvPickup"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="📍 Connaught Place"
+            android:text="📍 Connaught Place, Delhi"
             android:textSize="12sp"
             android:textColor="@color/grey"
             android:layout_marginTop="4dp" />
 
+        <!-- Destination -->
         <TextView
             android:id="@+id/tvDestination"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🏁 India Gate"
+            android:text="🏁 India Gate, Delhi"
             android:textSize="12sp"
             android:textColor="@color/grey" />
 
-        <!-- Fare -->
-        <TextView
-            android:id="@+id/tvFare"
-            android:layout_width="wrap_content"
+        <!-- Fare + Time -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="💰 ₹236"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:textColor="@color/primary"
-            android:layout_marginTop="4dp" />
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
 
-        <!-- Accept/Reject Buttons -->
+            <TextView
+                android:id="@+id/tvFare"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="💰 ₹236"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary" />
+
+            <TextView
+                android:id="@+id/tvTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="10:30 AM"
+                android:textSize="12sp"
+                android:textColor="@color/grey" />
+
+        </LinearLayout>
+
+        <!-- Action Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -84,7 +104,8 @@
                 android:text="✅ Accept"
                 app:cornerRadius="8dp"
                 android:textSize="12sp"
-                app:backgroundTint="@color/green" />
+                app:backgroundTint="@color/green"
+                android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnReject"
@@ -95,7 +116,8 @@
                 android:text="❌ Reject"
                 app:cornerRadius="8dp"
                 android:textSize="12sp"
-                app:backgroundTint="@color/red" />
+                app:backgroundTint="@color/red"
+                android:visibility="gone" />
 
         </LinearLayout>
 
