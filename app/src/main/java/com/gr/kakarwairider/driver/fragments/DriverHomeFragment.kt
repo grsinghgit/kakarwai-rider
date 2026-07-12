@@ -115,8 +115,34 @@ class DriverHomeFragment : Fragment() {
                 .addOnSuccessListener { document ->
                     if (document.exists()) {
                         val status = document.getString("status") ?: "OFFLINE"
-                        updateUIStatus(status == "ONLINE")
+                        val isOnlineStatus = status == "ONLINE"
+                        updateUIStatus(isOnlineStatus)
+                    } else {
+                        // ✅ If document doesn't exist, create one with OFFLINE
+                        createDriverLocationDocument()
                     }
+                }
+                .addOnFailureListener {
+                    // ✅ If failed, create document
+                    createDriverLocationDocument()
+                }
+        }
+    }
+
+    private fun createDriverLocationDocument() {
+        driverId?.let { id ->
+            val data = hashMapOf(
+                "driverId" to id,
+                "status" to "OFFLINE",
+                "isAvailable" to false,
+                "updatedAt" to com.google.firebase.Timestamp.now()
+            )
+            db.collection("driver_locations")
+                .document(id)
+                .set(data)
+                .addOnSuccessListener {
+                    android.util.Log.d("DriverHome", "✅ Driver location document created")
+                    updateUIStatus(false)
                 }
         }
     }
@@ -126,6 +152,7 @@ class DriverHomeFragment : Fragment() {
         val statusText = if (newStatus) "ONLINE" else "OFFLINE"
 
         driverId?.let { id ->
+            // ✅ Update Firestore status
             db.collection("driver_locations").document(id)
                 .update(
                     mapOf(
@@ -136,21 +163,26 @@ class DriverHomeFragment : Fragment() {
                 )
                 .addOnSuccessListener {
                     updateUIStatus(newStatus)
+
                     Toast.makeText(requireContext(),
-                        if (newStatus) "🟢 You are online" else "🔴 You are offline",
+                        if (newStatus) "🟢 You are ONLINE" else "🔴 You are OFFLINE",
                         Toast.LENGTH_SHORT).show()
 
                     // ✅ Start/stop location service
                     if (newStatus) {
+                        // ✅ ONLINE - Start Service
                         val intent = Intent(requireContext(), DriverLocationService::class.java)
                         intent.putExtra("driverId", driverId)
                         requireActivity().startService(intent)
+                        android.util.Log.d("DriverHome", "✅ Service Started")
                     } else {
+                        // ✅ OFFLINE - Stop Service
                         requireActivity().stopService(Intent(requireContext(), DriverLocationService::class.java))
+                        android.util.Log.d("DriverHome", "✅ Service Stopped")
                     }
                 }
-                .addOnFailureListener {
-                    Toast.makeText(requireContext(), "Failed to update status", Toast.LENGTH_SHORT).show()
+                .addOnFailureListener { e ->
+                    Toast.makeText(requireContext(), "Failed to update status: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
         }
     }
@@ -168,5 +200,10 @@ class DriverHomeFragment : Fragment() {
             btnGoOnline.text = "🟢 Go Online"
             btnGoOnline.setBackgroundColor(resources.getColor(R.color.green, null))
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // ✅ Service will be stopped when user goes offline or logs out
     }
 }
