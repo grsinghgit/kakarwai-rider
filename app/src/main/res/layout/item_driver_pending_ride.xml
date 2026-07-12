@@ -131,6 +131,27 @@
 
         </LinearLayout>
 
+        <!-- ✅ ARRIVED AT PICKUP BUTTON (ACCEPTED status par show) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnArrivedPickup"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="📍 Arrived at Pickup"
+                app:cornerRadius="8dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/blue"
+                android:textColor="@color/white"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
         <!-- Action Buttons (Accept/Reject) -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -148,7 +169,8 @@
                 app:cornerRadius="8dp"
                 android:textSize="12sp"
                 app:backgroundTint="@color/green"
-                android:visibility="visible" />
+                android:textColor="@color/white"
+                android:visibility="gone" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnReject"
@@ -160,7 +182,96 @@
                 app:cornerRadius="8dp"
                 android:textSize="12sp"
                 app:backgroundTint="@color/red"
-                android:visibility="visible" />
+                android:textColor="@color/white"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- ✅ PIN ENTRY + SUBMIT (ARRIVED_PICKUP status par show) -->
+        <LinearLayout
+            android:id="@+id/llPinEntry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp"
+            android:visibility="gone">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPin"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:hint="Enter PIN"
+                android:inputType="number"
+                android:maxLength="4"
+                android:textSize="14sp"
+                android:background="@android:drawable/editbox_background"
+                android:padding="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSubmitPin"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="✅ Submit"
+                app:cornerRadius="8dp"
+                android:textSize="12sp"
+                app:backgroundTint="@color/green"
+                android:textColor="@color/white" />
+
+        </LinearLayout>
+        <!-- ✅ DESTINATION REACHED BUTTON (ON_THE_WAY status par show) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnArrivedDestination"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:text="📍 Arrived at Destination"
+                app:cornerRadius="8dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/orange"
+                android:textColor="@color/white"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- ✅ COMPLETE PIN ENTRY (DESTINATION_REACHED status par show) -->
+        <LinearLayout
+            android:id="@+id/llCompletePinEntry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp"
+            android:visibility="gone">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etCompletePin"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:hint="Enter Complete PIN"
+                android:inputType="number"
+                android:maxLength="4"
+                android:textSize="14sp"
+                android:background="@android:drawable/editbox_background"
+                android:padding="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSubmitCompletePin"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="✅ Complete"
+                app:cornerRadius="8dp"
+                android:textSize="12sp"
+                app:backgroundTint="@color/green"
+                android:textColor="@color/white" />
 
         </LinearLayout>
 

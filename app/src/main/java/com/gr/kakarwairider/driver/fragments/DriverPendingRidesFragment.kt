@@ -13,6 +13,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.firebase.Timestamp
 import com.gr.kakarwairider.R
 import com.gr.kakarwairider.driver.adapter.DriverPendingRideAdapter
 import com.gr.kakarwairider.driver.viewmodel.DriverPendingRidesViewModel
@@ -60,12 +61,48 @@ class DriverPendingRidesFragment : Fragment() {
         adapter = DriverPendingRideAdapter(
             rides = emptyList(),
             onAccept = { ride ->
-                Log.d("PendingRidesFrag", "✅ Accept: ${ride.rideId}")
-                updateRideStatus(ride, "ACCEPTED")
+                // ... existing code
             },
             onReject = { ride ->
-                Log.d("PendingRidesFrag", "❌ Reject: ${ride.rideId}")
-                updateRideStatus(ride, "CANCELLED")
+                // ... existing code
+            },
+            onArrivedPickup = { ride ->
+                // ... existing code
+            },
+            onSubmitPin = { ride, enteredPin ->
+                // ... existing code
+            },
+            onArrivedDestination = { ride ->
+                Log.d("PendingRidesFrag", "📍 Destination Reached: ${ride.rideId}")
+
+                // ✅ Generate 4 digit Complete PIN
+                val completePin = (1000..9999).random().toString()
+
+                viewModel.updateRideWithCompletePin(
+                    rideId = ride.rideId,
+                    status = "DESTINATION_REACHED",
+                    completePin = completePin
+                ) { success ->
+                    if (success) {
+                        Toast.makeText(requireContext(), "📍 Destination Reached! Complete PIN: $completePin", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(requireContext(), "Failed to update", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onSubmitCompletePin = { ride, enteredPin ->
+                Log.d("PendingRidesFrag", "🔑 Complete PIN: ${ride.rideId}, PIN: $enteredPin")
+
+                viewModel.completeRideWithPin(
+                    rideId = ride.rideId,
+                    enteredPin = enteredPin
+                ) { success ->
+                    if (success) {
+                        Toast.makeText(requireContext(), "✅ Ride Completed Successfully!", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(requireContext(), "❌ Invalid PIN! Please try again.", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         )
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
@@ -76,7 +113,7 @@ class DriverPendingRidesFragment : Fragment() {
         viewModel.rides.observe(viewLifecycleOwner, Observer { rides ->
             Log.d("PendingRidesFrag", "📋 LiveData update: ${rides.size} rides")
             rides.forEach {
-                Log.d("PendingRidesFrag", "   - ${it.rideId}: ${it.status}")
+                Log.d("PendingRidesFrag", "   - ${it.rideId}: ${it.status}, PIN: ${it.pickupPin}")
             }
 
             adapter.updateDrivers(rides)
@@ -90,21 +127,6 @@ class DriverPendingRidesFragment : Fragment() {
                 viewModel.clearError()
             }
         })
-    }
-
-    private fun updateRideStatus(ride: RideModel, status: String) {
-        viewModel.updateRideStatus(ride.rideId, status) { success ->
-            if (success) {
-                val message = if (status == "ACCEPTED") {
-                    "✅ Ride Accepted!"
-                } else {
-                    "❌ Ride Rejected"
-                }
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(requireContext(), "Failed to update ride status", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     override fun onDestroyView() {

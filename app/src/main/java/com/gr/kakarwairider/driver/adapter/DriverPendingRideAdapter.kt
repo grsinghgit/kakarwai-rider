@@ -10,6 +10,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputEditText
 import com.gr.kakarwairider.R
 import com.gr.kakarwairider.model.RideModel
 import java.text.SimpleDateFormat
@@ -18,7 +19,11 @@ import java.util.*
 class DriverPendingRideAdapter(
     private var rides: List<RideModel>,
     private val onAccept: (RideModel) -> Unit,
-    private val onReject: (RideModel) -> Unit
+    private val onReject: (RideModel) -> Unit,
+    private val onArrivedPickup: (RideModel) -> Unit,
+    private val onSubmitPin: (RideModel, String) -> Unit,
+    private val onArrivedDestination: (RideModel) -> Unit,  // ✅ NEW
+    private val onSubmitCompletePin: (RideModel, String) -> Unit  // ✅ NEW
 ) : RecyclerView.Adapter<DriverPendingRideAdapter.PendingRideViewHolder>() {
 
     private val dateFormat = SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault())
@@ -53,12 +58,22 @@ class DriverPendingRideAdapter(
         private val btnReject: MaterialButton = itemView.findViewById(R.id.btnReject)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCall)
         private val btnRoute: MaterialButton = itemView.findViewById(R.id.btnRoute)
+        private val btnArrivedPickup: MaterialButton = itemView.findViewById(R.id.btnArrivedPickup)
+        private val llPinEntry: View = itemView.findViewById(R.id.llPinEntry)
+        private val etPin: TextInputEditText = itemView.findViewById(R.id.etPin)
+        private val btnSubmitPin: MaterialButton = itemView.findViewById(R.id.btnSubmitPin)
+        // ✅ NEW VIEWS
+        private val btnArrivedDestination: MaterialButton = itemView.findViewById(R.id.btnArrivedDestination)
+        private val llCompletePinEntry: View = itemView.findViewById(R.id.llCompletePinEntry)
+        private val etCompletePin: TextInputEditText = itemView.findViewById(R.id.etCompletePin)
+        private val btnSubmitCompletePin: MaterialButton = itemView.findViewById(R.id.btnSubmitCompletePin)
 
         fun bind(ride: RideModel) {
             val context = itemView.context
 
             Log.d("PendingRideAdapter", "📌 Binding: ${ride.rideId}, status: ${ride.status}")
 
+            // ✅ Set basic info
             tvRideId.text = "Ride #${ride.rideId.takeLast(8)}"
             tvPickup.text = "📍 ${ride.pickup?.address ?: "N/A"}"
             tvDestination.text = "🏁 ${ride.destination?.address ?: "N/A"}"
@@ -69,38 +84,62 @@ class DriverPendingRideAdapter(
                 tvTime.text = dateFormat.format(it.toDate())
             }
 
-            // ✅ STATUS - DRIVER_ASSIGNED + ACCEPTED + STARTED
+            // ✅ SAB BUTTONS PEHLE HIDE KARO
+            btnAccept.visibility = View.GONE
+            btnReject.visibility = View.GONE
+            btnArrivedPickup.visibility = View.GONE
+            llPinEntry.visibility = View.GONE
+            btnArrivedDestination.visibility = View.GONE
+            llCompletePinEntry.visibility = View.GONE
+            btnCall.visibility = View.VISIBLE
+            btnRoute.visibility = View.VISIBLE
+
+            // ✅ STATUS KE HISAB SE BUTTONS SHOW KARO
             when (ride.status) {
                 "DRIVER_ASSIGNED" -> {
                     tvStatus.text = "🔄 New Request"
                     tvStatus.setTextColor(context.getColor(R.color.orange))
                     btnAccept.visibility = View.VISIBLE
                     btnReject.visibility = View.VISIBLE
-                    btnCall.visibility = View.VISIBLE
-                    btnRoute.visibility = View.VISIBLE
+                    Log.d("PendingRideAdapter", "   ✅ Showing Accept/Reject")
                 }
                 "ACCEPTED" -> {
                     tvStatus.text = "✅ Accepted"
                     tvStatus.setTextColor(context.getColor(R.color.green))
-                    btnAccept.visibility = View.GONE
-                    btnReject.visibility = View.GONE
-                    btnCall.visibility = View.VISIBLE
-                    btnRoute.visibility = View.VISIBLE
+                    btnArrivedPickup.visibility = View.VISIBLE
+                    Log.d("PendingRideAdapter", "   ✅ Showing Arrived Pickup")
+                }
+                "ARRIVED_PICKUP" -> {
+                    tvStatus.text = "📍 Arrived at Pickup"
+                    tvStatus.setTextColor(context.getColor(R.color.blue))
+                    llPinEntry.visibility = View.VISIBLE
+                    Log.d("PendingRideAdapter", "   ✅ Showing PIN Entry")
+                }
+                "ON_THE_WAY" -> {
+                    tvStatus.text = "🚗 On The Way"
+                    tvStatus.setTextColor(context.getColor(R.color.blue))
+                    btnArrivedDestination.visibility = View.VISIBLE
+                    Log.d("PendingRideAdapter", "   ✅ Showing Arrived Destination")
+                }
+                "DESTINATION_REACHED" -> {
+                    tvStatus.text = "📍 Destination Reached"
+                    tvStatus.setTextColor(context.getColor(R.color.orange))
+                    llCompletePinEntry.visibility = View.VISIBLE
+                    Log.d("PendingRideAdapter", "   ✅ Showing Complete PIN Entry")
+                }
+                "COMPLETED" -> {
+                    tvStatus.text = "✅ Completed"
+                    tvStatus.setTextColor(context.getColor(R.color.green))
+                    Log.d("PendingRideAdapter", "   ✅ Completed")
                 }
                 "STARTED" -> {
                     tvStatus.text = "🚗 Started"
                     tvStatus.setTextColor(context.getColor(R.color.blue))
-                    btnAccept.visibility = View.GONE
-                    btnReject.visibility = View.GONE
-                    btnCall.visibility = View.VISIBLE
-                    btnRoute.visibility = View.VISIBLE
+                    Log.d("PendingRideAdapter", "   ✅ Started")
                 }
                 else -> {
                     tvStatus.text = ride.status
-                    btnAccept.visibility = View.GONE
-                    btnReject.visibility = View.GONE
-                    btnCall.visibility = View.VISIBLE
-                    btnRoute.visibility = View.VISIBLE
+                    Log.d("PendingRideAdapter", "   ✅ Other status: ${ride.status}")
                 }
             }
 
@@ -146,6 +185,42 @@ class DriverPendingRideAdapter(
             btnReject.setOnClickListener {
                 Log.d("PendingRideAdapter", "❌ Reject: ${ride.rideId}")
                 onReject(ride)
+            }
+
+            // ✅ ARRIVED AT PICKUP
+            btnArrivedPickup.setOnClickListener {
+                Log.d("PendingRideAdapter", "📍 Arrived Pickup: ${ride.rideId}")
+                onArrivedPickup(ride)
+            }
+
+            // ✅ SUBMIT PICKUP PIN
+            btnSubmitPin.setOnClickListener {
+                val enteredPin = etPin.text.toString().trim()
+                if (enteredPin.length != 4) {
+                    Toast.makeText(context, "❌ Enter 4 digit PIN", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                Log.d("PendingRideAdapter", "🔑 Submit Pickup PIN: $enteredPin")
+                onSubmitPin(ride, enteredPin)
+                etPin.text?.clear()
+            }
+
+            // ✅ ARRIVED AT DESTINATION
+            btnArrivedDestination.setOnClickListener {
+                Log.d("PendingRideAdapter", "📍 Arrived Destination: ${ride.rideId}")
+                onArrivedDestination(ride)
+            }
+
+            // ✅ SUBMIT COMPLETE PIN
+            btnSubmitCompletePin.setOnClickListener {
+                val enteredPin = etCompletePin.text.toString().trim()
+                if (enteredPin.length != 4) {
+                    Toast.makeText(context, "❌ Enter 4 digit PIN", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                Log.d("PendingRideAdapter", "🔑 Submit Complete PIN: $enteredPin")
+                onSubmitCompletePin(ride, enteredPin)
+                etCompletePin.text?.clear()
             }
         }
     }
