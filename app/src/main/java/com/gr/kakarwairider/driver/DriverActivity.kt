@@ -9,6 +9,7 @@ import com.gr.kakarwairider.driver.fragments.DriverHomeFragment
 import com.gr.kakarwairider.driver.fragments.DriverProfileFragment
 import com.gr.kakarwairider.driver.fragments.DriverRidesFragment
 import com.gr.kakarwairider.driver.fragments.DriverWalletFragment
+import com.gr.kakarwairider.driver.fragments.DriverPendingRidesFragment
 
 class DriverActivity : AppCompatActivity() {
 
@@ -21,6 +22,7 @@ class DriverActivity : AppCompatActivity() {
     private val profileFragment = DriverProfileFragment()
 
     private var currentFragment: Fragment = homeFragment
+    private val pendingRidesFragment = DriverPendingRidesFragment()  // ✅ NEW
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +50,11 @@ class DriverActivity : AppCompatActivity() {
                     loadFragment(ridesFragment, "RIDES")
                     true
                 }
+                R.id.driver_pending_rides -> {  // ✅ NEW
+                    loadFragment(pendingRidesFragment, "PENDING_RIDES")
+                    true
+                }
+
                 R.id.driver_wallet -> {
                     loadFragment(walletFragment, "WALLET")
                     true

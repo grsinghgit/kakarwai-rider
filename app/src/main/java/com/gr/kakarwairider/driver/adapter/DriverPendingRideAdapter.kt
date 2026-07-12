@@ -15,33 +15,40 @@ import com.gr.kakarwairider.model.RideModel
 import java.text.SimpleDateFormat
 import java.util.*
 
-class DriverRideAdapter(
-    private val rides: List<RideModel>,
+class DriverPendingRideAdapter(
+    private var rides: List<RideModel>,
     private val onAccept: (RideModel) -> Unit,
     private val onReject: (RideModel) -> Unit
-) : RecyclerView.Adapter<DriverRideAdapter.RideViewHolder>() {
+) : RecyclerView.Adapter<DriverPendingRideAdapter.PendingRideViewHolder>() {
 
     private val dateFormat = SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault())
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RideViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PendingRideViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_driver_ride, parent, false)
-        return RideViewHolder(view)
+            .inflate(R.layout.item_driver_pending_ride, parent, false)
+        return PendingRideViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: RideViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: PendingRideViewHolder, position: Int) {
         holder.bind(rides[position])
     }
 
     override fun getItemCount(): Int = rides.size
 
-    inner class RideViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    fun updateDrivers(newRides: List<RideModel>) {
+        Log.d("PendingRideAdapter", "🔄 updateDrivers: ${newRides.size} rides")
+        this.rides = newRides
+        notifyDataSetChanged()
+    }
+
+    inner class PendingRideViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvRideId: TextView = itemView.findViewById(R.id.tvRideId)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
         private val tvPickup: TextView = itemView.findViewById(R.id.tvPickup)
         private val tvDestination: TextView = itemView.findViewById(R.id.tvDestination)
         private val tvFare: TextView = itemView.findViewById(R.id.tvFare)
         private val tvTime: TextView = itemView.findViewById(R.id.tvTime)
+        private val tvUserPhone: TextView = itemView.findViewById(R.id.tvUserPhone)
         private val btnAccept: MaterialButton = itemView.findViewById(R.id.btnAccept)
         private val btnReject: MaterialButton = itemView.findViewById(R.id.btnReject)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCall)
@@ -50,56 +57,25 @@ class DriverRideAdapter(
         fun bind(ride: RideModel) {
             val context = itemView.context
 
+            Log.d("PendingRideAdapter", "📌 Binding: ${ride.rideId}, status: ${ride.status}")
+
             tvRideId.text = "Ride #${ride.rideId.takeLast(8)}"
             tvPickup.text = "📍 ${ride.pickup?.address ?: "N/A"}"
             tvDestination.text = "🏁 ${ride.destination?.address ?: "N/A"}"
             tvFare.text = "💰 ₹${ride.totalFare.toInt()}"
+            tvUserPhone.text = "📞 ${ride.userPhone}"
 
             ride.createdAt?.let {
                 tvTime.text = dateFormat.format(it.toDate())
             }
 
-            // ✅ CALL BUTTON - userPhone par call
-            btnCall.setOnClickListener {
-                val phone = ride.userPhone
-                if (phone.isEmpty()) {
-                    Toast.makeText(context, "❌ User phone number not available", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-                Log.d("DriverRideAdapter", "📞 Calling: $phone")
-                val intent = Intent(Intent.ACTION_DIAL).apply {
-                    data = Uri.parse("tel:$phone")
-                }
-                context.startActivity(intent)
-            }
-
-            // ✅ ROUTE BUTTON - Google Maps with Pickup → Destination
-            btnRoute.setOnClickListener {
-                val pickupLat = ride.pickup?.lat
-                val pickupLng = ride.pickup?.lng
-                val destLat = ride.destination?.lat
-                val destLng = ride.destination?.lng
-
-                if (pickupLat == null || pickupLng == null || destLat == null || destLng == null) {
-                    Toast.makeText(context, "❌ Location data not available", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-
-                Log.d("DriverRideAdapter", "🗺️ Route: ($pickupLat, $pickupLng) → ($destLat, $destLng)")
-                val uri = Uri.parse("https://www.google.com/maps/dir/$pickupLat,$pickupLng/$destLat,$destLng")
-                val intent = Intent(Intent.ACTION_VIEW, uri)
-                context.startActivity(intent)
-            }
-
-            // ✅ Status and buttons
+            // ✅ STATUS - DRIVER_ASSIGNED + ACCEPTED + STARTED
             when (ride.status) {
                 "DRIVER_ASSIGNED" -> {
-                    tvStatus.text = "⏳ New Request"
+                    tvStatus.text = "🔄 New Request"
                     tvStatus.setTextColor(context.getColor(R.color.orange))
                     btnAccept.visibility = View.VISIBLE
                     btnReject.visibility = View.VISIBLE
-                    btnAccept.setOnClickListener { onAccept(ride) }
-                    btnReject.setOnClickListener { onReject(ride) }
                     btnCall.visibility = View.VISIBLE
                     btnRoute.visibility = View.VISIBLE
                 }
@@ -126,6 +102,50 @@ class DriverRideAdapter(
                     btnCall.visibility = View.VISIBLE
                     btnRoute.visibility = View.VISIBLE
                 }
+            }
+
+            // ✅ CALL BUTTON
+            btnCall.setOnClickListener {
+                val phone = ride.userPhone
+                if (phone.isEmpty()) {
+                    Toast.makeText(context, "❌ Phone number not available", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                Log.d("PendingRideAdapter", "📞 Calling: $phone")
+                val intent = Intent(Intent.ACTION_DIAL).apply {
+                    data = Uri.parse("tel:$phone")
+                }
+                context.startActivity(intent)
+            }
+
+            // ✅ ROUTE BUTTON
+            btnRoute.setOnClickListener {
+                val pickupLat = ride.pickup?.lat
+                val pickupLng = ride.pickup?.lng
+                val destLat = ride.destination?.lat
+                val destLng = ride.destination?.lng
+
+                if (pickupLat == null || pickupLng == null || destLat == null || destLng == null) {
+                    Toast.makeText(context, "❌ Location data not available", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                Log.d("PendingRideAdapter", "🗺️ Route: ($pickupLat, $pickupLng) → ($destLat, $destLng)")
+                val uri = Uri.parse("https://www.google.com/maps/dir/$pickupLat,$pickupLng/$destLat,$destLng")
+                val intent = Intent(Intent.ACTION_VIEW, uri)
+                context.startActivity(intent)
+            }
+
+            // ✅ ACCEPT
+            btnAccept.setOnClickListener {
+                Log.d("PendingRideAdapter", "✅ Accept: ${ride.rideId}")
+                onAccept(ride)
+            }
+
+            // ✅ REJECT
+            btnReject.setOnClickListener {
+                Log.d("PendingRideAdapter", "❌ Reject: ${ride.rideId}")
+                onReject(ride)
             }
         }
     }

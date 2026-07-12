@@ -61,6 +61,16 @@
             android:textSize="12sp"
             android:textColor="@color/grey" />
 
+        <!-- User Phone -->
+        <TextView
+            android:id="@+id/tvUserPhone"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📞 +91 9876543210"
+            android:textSize="12sp"
+            android:textColor="@color/blue"
+            android:layout_marginTop="2dp" />
+
         <!-- Fare + Time -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -88,7 +98,7 @@
 
         </LinearLayout>
 
-        <!-- ✅ Call + Route Buttons -->
+        <!-- Call + Route Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -138,7 +148,7 @@
                 app:cornerRadius="8dp"
                 android:textSize="12sp"
                 app:backgroundTint="@color/green"
-                android:visibility="gone" />
+                android:visibility="visible" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnReject"
@@ -150,7 +160,7 @@
                 app:cornerRadius="8dp"
                 android:textSize="12sp"
                 app:backgroundTint="@color/red"
-                android:visibility="gone" />
+                android:visibility="visible" />
 
         </LinearLayout>
 

@@ -10,6 +10,11 @@
         android:id="@+id/driver_rides"
         android:icon="@drawable/ic_driver_rides"
         android:title="Rides" />
+    <item
+        android:id="@+id/driver_pending_rides"
+        android:icon="@drawable/ic_pending_rides"
+        android:title="Pending" />
+
 
     <item
         android:id="@+id/driver_wallet"
