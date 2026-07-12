@@ -98,6 +98,17 @@
 
         </LinearLayout>
 
+        <!-- ✅ DISTANCE ROW - Driver → Pickup + Pickup → Destination = Total -->
+        <TextView
+            android:id="@+id/tvDistance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📍 5.2km + 8.3km = 13.5km"
+            android:textSize="11sp"
+            android:textColor="@color/grey"
+            android:layout_marginTop="2dp"
+            android:visibility="gone" />
+
         <!-- Call + Route Buttons -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -220,6 +231,7 @@
                 android:textColor="@color/white" />
 
         </LinearLayout>
+
         <!-- ✅ DESTINATION REACHED BUTTON (ON_THE_WAY status par show) -->
         <LinearLayout
             android:layout_width="match_parent"

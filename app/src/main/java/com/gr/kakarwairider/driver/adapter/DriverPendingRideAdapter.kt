@@ -55,6 +55,7 @@ class DriverPendingRideAdapter(
         private val tvFare: TextView = itemView.findViewById(R.id.tvFare)
         private val tvTime: TextView = itemView.findViewById(R.id.tvTime)
         private val tvUserPhone: TextView = itemView.findViewById(R.id.tvUserPhone)
+        private val tvDistance: TextView = itemView.findViewById(R.id.tvDistance)  // ✅ NEW
         private val btnAccept: MaterialButton = itemView.findViewById(R.id.btnAccept)
         private val btnReject: MaterialButton = itemView.findViewById(R.id.btnReject)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCall)
@@ -81,8 +82,16 @@ class DriverPendingRideAdapter(
             // ✅ Show Fare with Distance Details
             if (ride.fareCalculated && ride.totalFare > 0) {
                 tvFare.text = "💰 ₹${DistanceUtils.formatFareInt(ride.totalFare)}"
+
+                // ✅ Distance in One Line: Driver → Pickup + Pickup → Destination = Total
+                val pickupDist = DistanceUtils.formatDistance(ride.pickupDistance)
+                val tripDist = DistanceUtils.formatDistance(ride.tripDistance)
+                val totalDist = DistanceUtils.formatDistance(ride.totalDistance)
+                tvDistance.text = "📍 ${pickupDist}km + ${tripDist}km = ${totalDist}km"
+                tvDistance.visibility = View.VISIBLE
             } else {
                 tvFare.text = "💰 Calculating..."
+                tvDistance.visibility = View.GONE
             }
 
             tvUserPhone.text = "📞 ${ride.userPhone}"
