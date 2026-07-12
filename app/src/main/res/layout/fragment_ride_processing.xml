@@ -1,254 +1,253 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true"
+    android:orientation="vertical"
     android:background="@color/white">
 
-    <LinearLayout
+    <!-- Top Bar -->
+    <androidx.appcompat.widget.Toolbar
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="24dp"
-        android:gravity="center">
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/primary"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
 
-        <!-- Logo -->
-        <ImageView
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:src="@drawable/ic_splash_logo"
-            android:layout_marginBottom="16dp" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🚗 Processing Your Trip"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:textColor="@color/primary"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Please wait while we find a driver for you"
-            android:textSize="14sp"
-            android:textColor="@color/grey"
-            android:layout_marginBottom="24dp" />
-
-        <!-- Timer -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:cardCornerRadius="50dp"
-            app:cardElevation="4dp"
-            android:padding="16dp"
-            android:layout_marginBottom="24dp"
-            app:cardBackgroundColor="@color/primary">
+            <ImageView
+                android:id="@+id/ivBack"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_back"
+                android:padding="8dp" />
 
             <TextView
-                android:id="@+id/tvTimer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="⏳ 5m 00s remaining"
+                android:text="Ride Processing"
+                android:textColor="@color/white"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="@color/white" />
+                android:layout_marginStart="12dp" />
 
-        </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
 
-        <!-- Status -->
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="⏳ Waiting for Driver..."
-            android:textSize="16sp"
-            android:textColor="@color/primary"
-            android:layout_marginBottom="16dp" />
+    </androidx.appcompat.widget.Toolbar>
 
-        <!-- Progress Bar -->
-        <ProgressBar
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:indeterminateTint="@color/primary"
-            android:layout_marginBottom="24dp" />
+    <!-- Timer -->
+    <TextView
+        android:id="@+id/tvTimer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⏳ 5m 0s remaining"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="8dp"
+        android:textColor="@color/red" />
 
-        <!-- Ride Details Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/cardRideDetails"
+    <!-- Status -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⏳ Searching for driver..."
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:padding="12dp"
+        android:textColor="@color/orange" />
+
+    <!-- Progress Bar -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:indeterminateTint="@color/primary"
+        android:layout_margin="16dp" />
+
+    <!-- Ride Details Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardRideDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        android:visibility="gone">
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            android:layout_marginBottom="16dp"
-            android:visibility="gone">
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvRideId"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Ride ID: #ABC123"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvPickup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📍 Connaught Place, Delhi"
+                android:textSize="13sp"
+                android:textColor="@color/grey"
+                android:layout_marginTop="4dp" />
+
+            <TextView
+                android:id="@+id/tvDestination"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🏁 India Gate, Delhi"
+                android:textSize="13sp"
+                android:textColor="@color/grey" />
+
+            <TextView
+                android:id="@+id/tvVehicle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🚗 Car"
+                android:textSize="13sp"
+                android:textColor="@color/grey"
+                android:layout_marginTop="4dp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
 
-                <TextView
-                    android:id="@+id/tvRideId"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Ride ID: #XYZ123"
-                    android:textSize="12sp"
-                    android:textColor="@color/grey"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/tvPickup"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="📍 Pickup: Connaught Place"
-                    android:textSize="14sp"
-                    android:layout_marginBottom="4dp" />
-
-                <TextView
-                    android:id="@+id/tvDestination"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🏁 Destination: India Gate"
-                    android:textSize="14sp"
-                    android:layout_marginBottom="8dp" />
-
-                <TextView
-                    android:id="@+id/tvFare"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="💰 Fare: ₹236"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary" />
-
-                <!-- Add these TextViews in your layout -->
                 <TextView
                     android:id="@+id/tvDistance"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="📍 0.0 km"
-                    android:textSize="14sp" />
+                    android:layout_weight="1"
+                    android:text="📍 12.5 km"
+                    android:textSize="13sp"
+                    android:textColor="@color/grey" />
 
                 <TextView
                     android:id="@+id/tvDuration"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="⏱️ 0 min"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/tvVehicle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="🚗 Car"
-                    android:textSize="14sp" />
-
-                <ProgressBar
-                    android:id="@+id/progressBar"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp" />
-
-                <!-- Driver Details Card -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardDriverDetails"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp"
-                    android:visibility="gone"
-                    android:layout_marginTop="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:id="@+id/tvDriverName"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="🚗 Driver Name"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tvDriverPhone"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="📱 Phone"
-                            android:textSize="14sp" />
-
-                        <TextView
-                            android:id="@+id/tvDriverVehicle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="🚙 Vehicle"
-                            android:textSize="14sp" />
-
-                    </LinearLayout>
-
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Start Ride Button (Hidden initially) -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnStartRide"
-                    android:layout_width="match_parent"
-                    android:layout_height="56dp"
-                    android:text="🚗 Start Ride"
-                    app:cornerRadius="12dp"
-                    app:backgroundTint="@color/green"
-                    android:visibility="gone"
-                    android:layout_marginTop="8dp" />
+                    android:layout_weight="1"
+                    android:text="⏱️ 25 min"
+                    android:textSize="13sp"
+                    android:textColor="@color/grey" />
 
             </LinearLayout>
 
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- Buttons -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnRefresh"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:text="🔄 Check Status"
-                app:cornerRadius="8dp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnCancel"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:text="❌ Cancel"
-                app:cornerRadius="8dp"
-                app:backgroundTint="@color/red" />
+            <TextView
+                android:id="@+id/tvFare"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="💰 ₹236"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:layout_marginTop="8dp" />
 
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Driver Details Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardDriverDetails"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="4dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="You can close the app and reopen to check status"
-            android:textSize="12sp"
-            android:textColor="@color/grey"
-            android:layout_marginTop="16dp"
-            android:gravity="center" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-    </LinearLayout>
+            <TextView
+                android:id="@+id/tvDriverName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🚗 Driver Name"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
-</ScrollView>
+            <TextView
+                android:id="@+id/tvDriverPhone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📱 +91 9876543210"
+                android:textSize="13sp"
+                android:textColor="@color/grey" />
+
+            <TextView
+                android:id="@+id/tvDriverVehicle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="🚙 Maruti Swift | DL-01-AB-1234"
+                android:textSize="13sp"
+                android:textColor="@color/grey" />
+
+        </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Start Ride Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnStartRide"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_margin="16dp"
+        android:text="🚗 Start Ride"
+        app:cornerRadius="8dp"
+        app:backgroundTint="@color/green"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:visibility="gone" />
+
+    <!-- Refresh Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnRefresh"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:text="🔄 Refresh Status"
+        app:cornerRadius="8dp"
+        app:backgroundTint="@color/blue"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:visibility="visible" />
+
+    <!-- ✅ Cancel Button - Hidden -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnCancel"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:text="❌ Cancel Ride"
+        app:cornerRadius="8dp"
+        app:backgroundTint="@color/red"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:visibility="gone" />   <!-- ✅ GONE -->
+
+</LinearLayout>

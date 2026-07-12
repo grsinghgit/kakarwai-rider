@@ -46,4 +46,7 @@
     <color name="switch_thumb_active">#4CAF50</color>   <!-- Green -->
     <color name="switch_thumb_inactive">#F44336</color> <!-- Red -->
     <color name="switch_thumb_default">#FFFFFF</color>  <!-- White -->
+    <!-- ✅ Add these colors -->
+    <color name="orange_dark">#E65100</color>
+
 </resources>

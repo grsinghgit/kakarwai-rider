@@ -193,7 +193,7 @@ class RideProcessingFragment : Fragment() {
         tvStatus.text = "⏳ Searching for a driver..."
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
         progressBar.visibility = View.VISIBLE
-        btnCancel.visibility = View.VISIBLE
+        //btnCancel.visibility = View.VISIBLE
         btnStartRide.visibility = View.GONE
         cardDriverDetails.visibility = View.GONE
         tvTimer.visibility = View.VISIBLE
@@ -417,9 +417,9 @@ class RideProcessingFragment : Fragment() {
             showToast("Status refreshed")
         }
 
-        btnCancel.setOnClickListener {
-            cancelRide()
-        }
+       // btnCancel.setOnClickListener {
+         //   cancelRide()
+       // }
     }
 
     private fun cancelRide() {
