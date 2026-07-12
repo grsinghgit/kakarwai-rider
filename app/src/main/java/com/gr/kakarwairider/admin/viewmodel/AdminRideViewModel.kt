@@ -1,5 +1,6 @@
 package com.gr.kakarwairider.admin.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -19,6 +20,7 @@ class AdminRideViewModel : ViewModel() {
 
     private val repository = AdminRideRepository()
     private val auth = FirebaseAuth.getInstance()
+    private val db = FirebaseFirestore.getInstance()
 
     private val _rides = MutableLiveData<List<RideModel>>(emptyList())
     val rides: LiveData<List<RideModel>> = _rides
@@ -38,56 +40,45 @@ class AdminRideViewModel : ViewModel() {
     private val _errorMessage = MutableLiveData<String?>(null)
     val errorMessage: LiveData<String?> = _errorMessage
 
+    private val _assignmentSuccess = MutableLiveData(false)
+    val assignmentSuccess: LiveData<Boolean> = _assignmentSuccess
+
     private var filter = RideFilterModel()
     private var areaId: String? = null
+    private var isListenerAttached = false
 
     init {
         loadAdminArea()
     }
 
     private fun loadAdminArea() {
-        // 🔥 TODO: Production mein Firebase Auth UID use karein
-        // val adminId = auth.currentUser?.uid
-        // android.util.Log.d("AdminRideVM", "👤 Admin ID from Firebase Auth: $adminId")
-
-        // ✅ Abhi ke liye manual admin ID use karein (test ke liye)
         val adminId = "admin_uid_123"
-        android.util.Log.d("AdminRideVM", "👤 Using manual Admin ID: $adminId")
+        Log.d("AdminRideVM", "👤 Using Admin ID: $adminId")
 
         if (adminId.isBlank()) {
-            android.util.Log.e("AdminRideVM", "❌ No admin ID configured!")
             _errorMessage.value = "Admin ID not configured"
             return
         }
 
         viewModelScope.launch {
             try {
-                val doc = FirebaseFirestore.getInstance()
-                    .collection("admins").document(adminId).get().await()
+                val doc = db.collection("admins").document(adminId).get().await()
 
                 if (!doc.exists()) {
-                    android.util.Log.e("AdminRideVM", "❌ Admin document not found for ID: $adminId")
-                    _errorMessage.value = "Admin profile not found. Please contact super admin."
+                    _errorMessage.value = "Admin profile not found"
                     return@launch
                 }
 
                 val areaIdFromFirestore = doc.getString("areaId")
-                android.util.Log.d("AdminRideVM", "📍 Raw areaId from Firestore: '$areaIdFromFirestore'")
-
                 if (!areaIdFromFirestore.isNullOrBlank()) {
                     areaId = areaIdFromFirestore
-                    android.util.Log.d("AdminRideVM", "✅ Area ID set: $areaId")
-                } else {
-                    android.util.Log.w("AdminRideVM", "⚠️ areaId is null or empty!")
-                    _errorMessage.value = "No area assigned to this admin"
-                    return@launch
-                }
-
-                if (areaId != null) {
+                    Log.d("AdminRideVM", "✅ Area ID: $areaId")
                     loadRides()
+                } else {
+                    _errorMessage.value = "No area assigned to this admin"
                 }
             } catch (e: Exception) {
-                android.util.Log.e("AdminRideVM", "❌ Error: ${e.message}")
+                Log.e("AdminRideVM", "❌ Error: ${e.message}")
                 _errorMessage.value = "Failed to load admin area: ${e.message}"
             }
         }
@@ -95,10 +86,19 @@ class AdminRideViewModel : ViewModel() {
 
     private fun loadRides() {
         val area = areaId ?: return
+
+        if (isListenerAttached) {
+            Log.d("AdminRideVM", "⚠️ Listener already attached, skipping...")
+            return
+        }
+
+        Log.d("AdminRideVM", "✅ Attaching Snapshot Listener for area: $area")
         _isLoading.value = true
+        isListenerAttached = true
 
         viewModelScope.launch {
             repository.getRidesByArea(area).collectLatest { rideList ->
+                Log.d("AdminRideVM", "📋 Received ${rideList.size} rides")
                 _rides.value = rideList
                 applyFilter()
                 calculateStats(rideList)
@@ -106,10 +106,10 @@ class AdminRideViewModel : ViewModel() {
             }
         }
 
-        // Load available drivers
         viewModelScope.launch {
             repository.getAvailableDrivers().collectLatest { drivers ->
                 _availableDrivers.value = drivers
+                Log.d("AdminRideVM", "👤 Available drivers: ${drivers.size}")
             }
         }
     }
@@ -129,12 +129,11 @@ class AdminRideViewModel : ViewModel() {
         val filtered = currentRides.filter { ride ->
             var matches = true
 
-            // ✅ Status filter
             if (filter.status != "ALL") {
                 val statusMatch = when (filter.status) {
                     "PENDING" -> ride.status in listOf("PENDING", "SEARCHING")
                     "ASSIGNED" -> ride.status in listOf("DRIVER_ASSIGNED", "ACCEPTED")
-                    "STARTED" -> ride.status == "STARTED"
+                    "STARTED" -> ride.status in listOf("STARTED", "ON_THE_WAY", "ARRIVED_PICKUP", "DESTINATION_REACHED")
                     "COMPLETED" -> ride.status == "COMPLETED"
                     "CANCELLED" -> ride.status == "CANCELLED"
                     else -> true
@@ -142,12 +141,10 @@ class AdminRideViewModel : ViewModel() {
                 matches = matches && statusMatch
             }
 
-            // ✅ Vehicle filter
             if (filter.vehicleType != "ALL") {
                 matches = matches && ride.vehicleType.equals(filter.vehicleType, ignoreCase = true)
             }
 
-            // ✅ Payment filter
             if (filter.paymentType != "ALL") {
                 matches = matches && ride.paymentMethod.equals(filter.paymentType, ignoreCase = true)
             }
@@ -155,19 +152,39 @@ class AdminRideViewModel : ViewModel() {
             matches
         }
         _filteredRides.value = filtered
+        Log.d("AdminRideVM", "🔍 Filtered: ${filtered.size} rides")
     }
 
     private fun calculateStats(rides: List<RideModel>) {
-        _stats.value = repository.getStats(rides)
+        viewModelScope.launch {
+            val stats = repository.getStats(rides)
+            _stats.value = stats
+        }
     }
 
     fun assignDriver(rideId: String, driverId: String, driverName: String) {
+        if (rideId.isEmpty() || driverId.isEmpty()) {
+            _errorMessage.value = "Invalid ride or driver ID"
+            return
+        }
+
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.assignDriver(rideId, driverId, driverName)
-                _errorMessage.value = null
+                Log.d("AdminRideVM", "🔄 Assigning driver $driverName to ride $rideId")
+
+                val success = repository.assignDriver(rideId, driverId, driverName)
+
+                if (success) {
+                    Log.d("AdminRideVM", "✅ Driver assigned successfully")
+                    _errorMessage.value = null
+                    _assignmentSuccess.value = true
+                    _assignmentSuccess.value = false
+                } else {
+                    _errorMessage.value = "Failed to assign driver"
+                }
             } catch (e: Exception) {
+                Log.e("AdminRideVM", "❌ Assign failed: ${e.message}")
                 _errorMessage.value = "Failed to assign driver: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -176,12 +193,28 @@ class AdminRideViewModel : ViewModel() {
     }
 
     fun reassignDriver(rideId: String, driverId: String, driverName: String) {
+        if (rideId.isEmpty() || driverId.isEmpty()) {
+            _errorMessage.value = "Invalid ride or driver ID"
+            return
+        }
+
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.reassignDriver(rideId, driverId, driverName)
-                _errorMessage.value = null
+                Log.d("AdminRideVM", "🔄 Reassigning driver $driverName to ride $rideId")
+
+                val success = repository.reassignDriver(rideId, driverId, driverName)
+
+                if (success) {
+                    Log.d("AdminRideVM", "✅ Driver reassigned successfully")
+                    _errorMessage.value = null
+                    _assignmentSuccess.value = true
+                    _assignmentSuccess.value = false
+                } else {
+                    _errorMessage.value = "Failed to reassign driver"
+                }
             } catch (e: Exception) {
+                Log.e("AdminRideVM", "❌ Reassign failed: ${e.message}")
                 _errorMessage.value = "Failed to reassign driver: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -190,12 +223,26 @@ class AdminRideViewModel : ViewModel() {
     }
 
     fun cancelRide(rideId: String, reason: String, cancelledBy: String = "admin") {
+        if (rideId.isEmpty()) {
+            _errorMessage.value = "Invalid ride ID"
+            return
+        }
+
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.cancelRide(rideId, reason, cancelledBy)
-                _errorMessage.value = null
+                Log.d("AdminRideVM", "🔄 Cancelling ride $rideId, reason: $reason")
+
+                val success = repository.cancelRide(rideId, reason, cancelledBy)
+
+                if (success) {
+                    Log.d("AdminRideVM", "✅ Ride cancelled successfully")
+                    _errorMessage.value = null
+                } else {
+                    _errorMessage.value = "Failed to cancel ride"
+                }
             } catch (e: Exception) {
+                Log.e("AdminRideVM", "❌ Cancel failed: ${e.message}")
                 _errorMessage.value = "Failed to cancel ride: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -204,12 +251,26 @@ class AdminRideViewModel : ViewModel() {
     }
 
     fun completeRide(rideId: String) {
+        if (rideId.isEmpty()) {
+            _errorMessage.value = "Invalid ride ID"
+            return
+        }
+
         viewModelScope.launch {
             try {
                 _isLoading.value = true
-                repository.completeRide(rideId)
-                _errorMessage.value = null
+                Log.d("AdminRideVM", "🔄 Completing ride $rideId")
+
+                val success = repository.completeRide(rideId)
+
+                if (success) {
+                    Log.d("AdminRideVM", "✅ Ride completed successfully")
+                    _errorMessage.value = null
+                } else {
+                    _errorMessage.value = "Failed to complete ride"
+                }
             } catch (e: Exception) {
+                Log.e("AdminRideVM", "❌ Complete failed: ${e.message}")
                 _errorMessage.value = "Failed to complete ride: ${e.message}"
             } finally {
                 _isLoading.value = false
@@ -222,4 +283,10 @@ class AdminRideViewModel : ViewModel() {
     }
 
     fun getAvailableDriversList(): List<DriverInfo> = _availableDrivers.value ?: emptyList()
+
+    override fun onCleared() {
+        super.onCleared()
+        isListenerAttached = false
+        Log.d("AdminRideVM", "🧹 ViewModel cleared")
+    }
 }

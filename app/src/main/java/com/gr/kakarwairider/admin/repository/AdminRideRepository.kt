@@ -1,5 +1,6 @@
 package com.gr.kakarwairider.admin.repository
 
+import android.util.Log
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
@@ -8,7 +9,7 @@ import com.gr.kakarwairider.model.RideModel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.tasks.await   // ✅ Import for await()
+import kotlinx.coroutines.tasks.await
 import java.util.*
 
 class AdminRideRepository {
@@ -24,7 +25,10 @@ class AdminRideRepository {
                     close(error)
                     return@addSnapshotListener
                 }
-                val rides = snapshots?.documents?.mapNotNull { it.toObject<RideModel>() } ?: emptyList()
+                val rides = snapshots?.documents?.mapNotNull {
+                    val ride = it.toObject<RideModel>()
+                    ride?.copy(rideId = it.id)
+                } ?: emptyList()
                 trySend(rides)
             }
         awaitClose { listener.remove() }
@@ -40,7 +44,7 @@ class AdminRideRepository {
         return RideStatsModel(
             totalRides = rides.size,
             pendingRides = rides.count { it.status == "PENDING" || it.status == "SEARCHING" },
-            activeRides = rides.count { it.status in listOf("DRIVER_ASSIGNED", "ACCEPTED", "STARTED") },
+            activeRides = rides.count { it.status in listOf("DRIVER_ASSIGNED", "ACCEPTED", "STARTED", "ON_THE_WAY", "ARRIVED_PICKUP", "DESTINATION_REACHED") },
             completedRides = rides.count { it.status == "COMPLETED" },
             cancelledRides = rides.count { it.status == "CANCELLED" },
             todayEarnings = todayRides.filter { it.status == "COMPLETED" }.sumOf { it.totalFare },
@@ -72,50 +76,71 @@ class AdminRideRepository {
         awaitClose { listener.remove() }
     }
 
-    // ✅ Assign driver
-    suspend fun assignDriver(rideId: String, driverId: String, driverName: String) {
-        db.collection("rides").document(rideId)
-            .update(
-                mapOf(
-                    "driverId" to driverId,
-                    "driverName" to driverName,
-                    "status" to "DRIVER_ASSIGNED",
-                    "updatedAt" to Timestamp.now()
+    // ✅ FIXED: assignDriver - with proper await and error handling
+    suspend fun assignDriver(rideId: String, driverId: String, driverName: String): Boolean {
+        return try {
+            db.collection("rides").document(rideId)
+                .update(
+                    mapOf(
+                        "driverId" to driverId,
+                        "driverName" to driverName,
+                        "status" to "DRIVER_ASSIGNED",
+                        "updatedAt" to Timestamp.now()
+                    )
                 )
-            )
-            .await()   // ✅ Now works with import
+                .await()
+            Log.d("AdminRideRepo", "✅ Driver assigned: $driverName to $rideId")
+            true
+        } catch (e: Exception) {
+            Log.e("AdminRideRepo", "❌ Assign failed: ${e.message}")
+            false
+        }
     }
 
-    // ✅ Reassign driver
-    suspend fun reassignDriver(rideId: String, driverId: String, driverName: String) {
-        assignDriver(rideId, driverId, driverName)
+    // ✅ FIXED: reassignDriver
+    suspend fun reassignDriver(rideId: String, driverId: String, driverName: String): Boolean {
+        return assignDriver(rideId, driverId, driverName)
     }
 
-    // ✅ Cancel ride
-    suspend fun cancelRide(rideId: String, reason: String, cancelledBy: String) {
-        db.collection("rides").document(rideId)
-            .update(
-                mapOf(
-                    "status" to "CANCELLED",
-                    "cancelReason" to reason,
-                    "cancelledBy" to cancelledBy,
-                    "updatedAt" to Timestamp.now()
+    // ✅ FIXED: cancelRide
+    suspend fun cancelRide(rideId: String, reason: String, cancelledBy: String): Boolean {
+        return try {
+            db.collection("rides").document(rideId)
+                .update(
+                    mapOf(
+                        "status" to "CANCELLED",
+                        "cancelReason" to reason,
+                        "cancelledBy" to cancelledBy,
+                        "updatedAt" to Timestamp.now()
+                    )
                 )
-            )
-            .await()   // ✅ Now works with import
+                .await()
+            Log.d("AdminRideRepo", "✅ Ride cancelled: $rideId")
+            true
+        } catch (e: Exception) {
+            Log.e("AdminRideRepo", "❌ Cancel failed: ${e.message}")
+            false
+        }
     }
 
-    // ✅ Complete ride
-    suspend fun completeRide(rideId: String) {
-        db.collection("rides").document(rideId)
-            .update(
-                mapOf(
-                    "status" to "COMPLETED",
-                    "completedAt" to Timestamp.now(),
-                    "updatedAt" to Timestamp.now()
+    // ✅ FIXED: completeRide
+    suspend fun completeRide(rideId: String): Boolean {
+        return try {
+            db.collection("rides").document(rideId)
+                .update(
+                    mapOf(
+                        "status" to "COMPLETED",
+                        "completedAt" to Timestamp.now(),
+                        "updatedAt" to Timestamp.now()
+                    )
                 )
-            )
-            .await()   // ✅ Now works with import
+                .await()
+            Log.d("AdminRideRepo", "✅ Ride completed: $rideId")
+            true
+        } catch (e: Exception) {
+            Log.e("AdminRideRepo", "❌ Complete failed: ${e.message}")
+            false
+        }
     }
 }
 

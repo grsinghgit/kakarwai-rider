@@ -2,6 +2,7 @@ package com.gr.kakarwairider.admin.adapter
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -71,7 +72,7 @@ class AdminRideAdapter(
             val statusColor = when (ride.status) {
                 "PENDING", "SEARCHING" -> itemView.context.getColor(R.color.orange)
                 "DRIVER_ASSIGNED", "ACCEPTED" -> itemView.context.getColor(R.color.blue)
-                "STARTED" -> itemView.context.getColor(R.color.green)
+                "STARTED", "ON_THE_WAY", "ARRIVED_PICKUP", "DESTINATION_REACHED" -> itemView.context.getColor(R.color.green)
                 "COMPLETED" -> itemView.context.getColor(R.color.green)
                 "CANCELLED" -> itemView.context.getColor(R.color.red)
                 else -> itemView.context.getColor(R.color.grey)
@@ -82,7 +83,7 @@ class AdminRideAdapter(
             val statusBg = when (ride.status) {
                 "PENDING", "SEARCHING" -> R.drawable.bg_status_pending
                 "DRIVER_ASSIGNED", "ACCEPTED" -> R.drawable.bg_status_assigned
-                "STARTED" -> R.drawable.bg_status_started
+                "STARTED", "ON_THE_WAY", "ARRIVED_PICKUP", "DESTINATION_REACHED" -> R.drawable.bg_status_started
                 "COMPLETED" -> R.drawable.bg_status_completed
                 "CANCELLED" -> R.drawable.bg_status_cancelled
                 else -> 0
@@ -99,7 +100,7 @@ class AdminRideAdapter(
                 tvCancelReason.visibility = View.GONE
             }
 
-            // ✅ Timeline - Fixed with safe calls
+            // Timeline
             val timeline = StringBuilder()
             ride.createdAt?.let {
                 timeline.append("📅 Booking: ${dateFormat.format(it.toDate())}")
@@ -109,13 +110,12 @@ class AdminRideAdapter(
                     timeline.append(" → Assigned: ${dateFormat.format(updated.toDate())}")
                 }
             }
-            // ✅ Fixed: Use `ride.completedAt` safely
             ride.completedAt?.let {
                 timeline.append(" → Complete: ${dateFormat.format(it.toDate())}")
             }
             tvTimeline.text = timeline.toString()
 
-            // Buttons visibility
+            // ✅ BUTTONS VISIBILITY - ALL STATUSES
             when (ride.status) {
                 "PENDING", "SEARCHING" -> {
                     btnAssign.visibility = View.VISIBLE
@@ -133,13 +133,32 @@ class AdminRideAdapter(
                     btnReassign.setOnClickListener { showAssignDialog(ride, true) }
                     btnCancel.setOnClickListener { showCancelDialog(ride) }
                 }
-                "STARTED" -> {
+                "STARTED", "ON_THE_WAY", "ARRIVED_PICKUP", "DESTINATION_REACHED" -> {
                     btnAssign.visibility = View.GONE
                     btnReassign.visibility = View.GONE
-                    btnComplete.visibility = View.VISIBLE
-                    btnCancel.visibility = View.VISIBLE
-                    btnComplete.setOnClickListener { onComplete(ride) }
+                    btnComplete.visibility = View.VISIBLE  // ✅ COMPLETE BUTTON SHOW
+                    btnCancel.visibility = View.VISIBLE    // ✅ CANCEL BUTTON SHOW
+                    btnComplete.setOnClickListener {
+                        AlertDialog.Builder(itemView.context)
+                            .setTitle("✅ Complete Ride")
+                            .setMessage("Are you sure you want to complete this ride?")
+                            .setPositiveButton("Complete") { _, _ -> onComplete(ride) }
+                            .setNegativeButton("Cancel", null)
+                            .show()
+                    }
                     btnCancel.setOnClickListener { showCancelDialog(ride) }
+                }
+                "COMPLETED" -> {
+                    btnAssign.visibility = View.GONE
+                    btnReassign.visibility = View.GONE
+                    btnComplete.visibility = View.GONE
+                    btnCancel.visibility = View.GONE
+                }
+                "CANCELLED" -> {
+                    btnAssign.visibility = View.GONE
+                    btnReassign.visibility = View.GONE
+                    btnComplete.visibility = View.GONE
+                    btnCancel.visibility = View.GONE
                 }
                 else -> {
                     btnAssign.visibility = View.GONE
@@ -185,7 +204,6 @@ class AdminRideAdapter(
                 return
             }
 
-            // ✅ Exclude current driver for reassign
             val availableList = if (isReassign) {
                 available.filter { it.driverId != ride.driverId }
             } else {
@@ -197,11 +215,14 @@ class AdminRideAdapter(
                 return
             }
 
-            val names = availableList.map { it.name }.toTypedArray()
+            val driverNames = availableList.map { "${it.name} (${it.phone})" }.toTypedArray()
+
             AlertDialog.Builder(itemView.context)
-                .setTitle(if (isReassign) "Reassign Driver" else "Assign Driver")
-                .setItems(names) { _, which ->
+                .setTitle(if (isReassign) "🔄 Reassign Driver" else "✅ Assign Driver")
+                .setItems(driverNames) { _, which ->
                     val driver = availableList[which]
+                    Log.d("AdminRideAdapter", "📌 Selected: ${driver.name} (${driver.driverId})")
+
                     if (isReassign) {
                         onReassign(ride, driver.driverId, driver.name)
                     } else {
@@ -222,7 +243,7 @@ class AdminRideAdapter(
                 "Other"
             )
             AlertDialog.Builder(itemView.context)
-                .setTitle("Cancel Ride")
+                .setTitle("❌ Cancel Ride")
                 .setItems(reasons) { _, which ->
                     onCancel(ride, reasons[which])
                 }
