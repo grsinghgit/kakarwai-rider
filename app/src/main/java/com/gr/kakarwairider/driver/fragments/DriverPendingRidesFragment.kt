@@ -18,6 +18,7 @@ import com.gr.kakarwairider.R
 import com.gr.kakarwairider.driver.adapter.DriverPendingRideAdapter
 import com.gr.kakarwairider.driver.viewmodel.DriverPendingRidesViewModel
 import com.gr.kakarwairider.model.RideModel
+import com.gr.kakarwairider.utils.DistanceUtils
 
 class DriverPendingRidesFragment : Fragment() {
 
@@ -61,21 +62,88 @@ class DriverPendingRidesFragment : Fragment() {
         adapter = DriverPendingRideAdapter(
             rides = emptyList(),
             onAccept = { ride ->
-                // ... existing code
+                Log.d("PendingRidesFrag", "✅ Accept: ${ride.rideId}")
+
+                val driverId = driverId ?: ""
+                val areaId = ride.areaId
+                val pickupLat = ride.pickup?.lat ?: 0.0
+                val pickupLng = ride.pickup?.lng ?: 0.0
+                val destLat = ride.destination?.lat ?: 0.0
+                val destLng = ride.destination?.lng ?: 0.0
+
+                // ✅ Positive check - data available hai toh hi aage badho
+                if (areaId.isNotEmpty() && pickupLat != 0.0 && destLat != 0.0) {
+                    viewModel.calculateFareForRide(
+                        rideId = ride.rideId,
+                        driverId = driverId,
+                        areaId = areaId,
+                        pickupLat = pickupLat,
+                        pickupLng = pickupLng,
+                        destLat = destLat,
+                        destLng = destLng
+                    ) { fareSuccess ->
+                        if (fareSuccess) {
+                            viewModel.updateRideStatus(ride.rideId, "ACCEPTED") { success ->
+                                if (success) {
+                                    Toast.makeText(
+                                        requireContext(),
+                                        "✅ Ride Accepted! Fare: ₹${DistanceUtils.formatFareInt(ride.totalFare)}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        } else {
+                            Toast.makeText(requireContext(), "❌ Failed to calculate fare", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    Toast.makeText(requireContext(), "❌ Missing location data", Toast.LENGTH_SHORT).show()
+                }
             },
             onReject = { ride ->
-                // ... existing code
+                Log.d("PendingRidesFrag", "❌ Reject: ${ride.rideId}")
+                viewModel.updateRideStatus(ride.rideId, "CANCELLED") { success ->
+                    if (success) {
+                        Toast.makeText(requireContext(), "❌ Ride Rejected", Toast.LENGTH_SHORT).show()
+                    }
+                }
             },
             onArrivedPickup = { ride ->
-                // ... existing code
+                Log.d("PendingRidesFrag", "📍 Arrived at pickup: ${ride.rideId}")
+
+                val pickupPin = (1000..9999).random().toString()
+
+                viewModel.updateRideWithPin(
+                    rideId = ride.rideId,
+                    status = "ARRIVED_PICKUP",
+                    pickupPin = pickupPin,
+                    pickupTime = Timestamp.now()
+                ) { success ->
+                    if (success) {
+                        Toast.makeText(requireContext(), "📍 Arrived! PIN: $pickupPin", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(requireContext(), "Failed to update", Toast.LENGTH_SHORT).show()
+                    }
+                }
             },
             onSubmitPin = { ride, enteredPin ->
-                // ... existing code
+                Log.d("PendingRidesFrag", "🔑 Submit PIN: ${ride.rideId}, PIN: $enteredPin")
+
+                if (ride.pickupPin == enteredPin) {
+                    viewModel.updateRideStatus(ride.rideId, "ON_THE_WAY") { success ->
+                        if (success) {
+                            Toast.makeText(requireContext(), "✅ PIN Verified! Ride Started!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(requireContext(), "Failed to update", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    Toast.makeText(requireContext(), "❌ Invalid PIN! Please try again.", Toast.LENGTH_SHORT).show()
+                }
             },
             onArrivedDestination = { ride ->
                 Log.d("PendingRidesFrag", "📍 Destination Reached: ${ride.rideId}")
 
-                // ✅ Generate 4 digit Complete PIN
                 val completePin = (1000..9999).random().toString()
 
                 viewModel.updateRideWithCompletePin(
@@ -98,7 +166,11 @@ class DriverPendingRidesFragment : Fragment() {
                     enteredPin = enteredPin
                 ) { success ->
                     if (success) {
-                        Toast.makeText(requireContext(), "✅ Ride Completed Successfully!", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            requireContext(),
+                            "✅ Ride Completed! Fare: ₹${DistanceUtils.formatFareInt(ride.totalFare)}",
+                            Toast.LENGTH_LONG
+                        ).show()
                     } else {
                         Toast.makeText(requireContext(), "❌ Invalid PIN! Please try again.", Toast.LENGTH_SHORT).show()
                     }
@@ -113,7 +185,7 @@ class DriverPendingRidesFragment : Fragment() {
         viewModel.rides.observe(viewLifecycleOwner, Observer { rides ->
             Log.d("PendingRidesFrag", "📋 LiveData update: ${rides.size} rides")
             rides.forEach {
-                Log.d("PendingRidesFrag", "   - ${it.rideId}: ${it.status}, PIN: ${it.pickupPin}")
+                Log.d("PendingRidesFrag", "   - ${it.rideId}: ${it.status}, Fare: ₹${it.totalFare}")
             }
 
             adapter.updateDrivers(rides)

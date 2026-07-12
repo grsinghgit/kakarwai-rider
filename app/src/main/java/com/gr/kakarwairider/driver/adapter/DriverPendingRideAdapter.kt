@@ -13,6 +13,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.gr.kakarwairider.R
 import com.gr.kakarwairider.model.RideModel
+import com.gr.kakarwairider.utils.DistanceUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -22,8 +23,8 @@ class DriverPendingRideAdapter(
     private val onReject: (RideModel) -> Unit,
     private val onArrivedPickup: (RideModel) -> Unit,
     private val onSubmitPin: (RideModel, String) -> Unit,
-    private val onArrivedDestination: (RideModel) -> Unit,  // ✅ NEW
-    private val onSubmitCompletePin: (RideModel, String) -> Unit  // ✅ NEW
+    private val onArrivedDestination: (RideModel) -> Unit,
+    private val onSubmitCompletePin: (RideModel, String) -> Unit
 ) : RecyclerView.Adapter<DriverPendingRideAdapter.PendingRideViewHolder>() {
 
     private val dateFormat = SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault())
@@ -62,7 +63,6 @@ class DriverPendingRideAdapter(
         private val llPinEntry: View = itemView.findViewById(R.id.llPinEntry)
         private val etPin: TextInputEditText = itemView.findViewById(R.id.etPin)
         private val btnSubmitPin: MaterialButton = itemView.findViewById(R.id.btnSubmitPin)
-        // ✅ NEW VIEWS
         private val btnArrivedDestination: MaterialButton = itemView.findViewById(R.id.btnArrivedDestination)
         private val llCompletePinEntry: View = itemView.findViewById(R.id.llCompletePinEntry)
         private val etCompletePin: TextInputEditText = itemView.findViewById(R.id.etCompletePin)
@@ -77,7 +77,14 @@ class DriverPendingRideAdapter(
             tvRideId.text = "Ride #${ride.rideId.takeLast(8)}"
             tvPickup.text = "📍 ${ride.pickup?.address ?: "N/A"}"
             tvDestination.text = "🏁 ${ride.destination?.address ?: "N/A"}"
-            tvFare.text = "💰 ₹${ride.totalFare.toInt()}"
+
+            // ✅ Show Fare with Distance Details
+            if (ride.fareCalculated && ride.totalFare > 0) {
+                tvFare.text = "💰 ₹${DistanceUtils.formatFareInt(ride.totalFare)}"
+            } else {
+                tvFare.text = "💰 Calculating..."
+            }
+
             tvUserPhone.text = "📞 ${ride.userPhone}"
 
             ride.createdAt?.let {
