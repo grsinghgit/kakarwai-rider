@@ -55,7 +55,7 @@ class DriverPendingRideAdapter(
         private val tvFare: TextView = itemView.findViewById(R.id.tvFare)
         private val tvTime: TextView = itemView.findViewById(R.id.tvTime)
         private val tvUserPhone: TextView = itemView.findViewById(R.id.tvUserPhone)
-        private val tvDistance: TextView = itemView.findViewById(R.id.tvDistance)  // ✅ NEW
+        private val tvDistance: TextView = itemView.findViewById(R.id.tvDistance)
         private val btnAccept: MaterialButton = itemView.findViewById(R.id.btnAccept)
         private val btnReject: MaterialButton = itemView.findViewById(R.id.btnReject)
         private val btnCall: MaterialButton = itemView.findViewById(R.id.btnCall)
@@ -82,8 +82,6 @@ class DriverPendingRideAdapter(
             // ✅ Show Fare with Distance Details
             if (ride.fareCalculated && ride.totalFare > 0) {
                 tvFare.text = "💰 ₹${DistanceUtils.formatFareInt(ride.totalFare)}"
-
-                // ✅ Distance in One Line: Driver → Pickup + Pickup → Destination = Total
                 val pickupDist = DistanceUtils.formatDistance(ride.pickupDistance)
                 val tripDist = DistanceUtils.formatDistance(ride.tripDistance)
                 val totalDist = DistanceUtils.formatDistance(ride.totalDistance)
@@ -119,11 +117,16 @@ class DriverPendingRideAdapter(
                     btnReject.visibility = View.VISIBLE
                     Log.d("PendingRideAdapter", "   ✅ Showing Accept/Reject")
                 }
-                "ACCEPTED" -> {
-                    tvStatus.text = "✅ Accepted"
-                    tvStatus.setTextColor(context.getColor(R.color.green))
+                "ACCEPTED", "STARTED" -> {
+                    tvStatus.text = if (ride.status == "ACCEPTED") "✅ Accepted" else "🚗 Started"
+                    tvStatus.setTextColor(
+                        if (ride.status == "ACCEPTED")
+                            context.getColor(R.color.green)
+                        else
+                            context.getColor(R.color.blue)
+                    )
                     btnArrivedPickup.visibility = View.VISIBLE
-                    Log.d("PendingRideAdapter", "   ✅ Showing Arrived Pickup")
+                    Log.d("PendingRideAdapter", "   ✅ Showing Arrived Pickup for ${ride.status}")
                 }
                 "ARRIVED_PICKUP" -> {
                     tvStatus.text = "📍 Arrived at Pickup"
@@ -147,11 +150,6 @@ class DriverPendingRideAdapter(
                     tvStatus.text = "✅ Completed"
                     tvStatus.setTextColor(context.getColor(R.color.green))
                     Log.d("PendingRideAdapter", "   ✅ Completed")
-                }
-                "STARTED" -> {
-                    tvStatus.text = "🚗 Started"
-                    tvStatus.setTextColor(context.getColor(R.color.blue))
-                    Log.d("PendingRideAdapter", "   ✅ Started")
                 }
                 else -> {
                     tvStatus.text = ride.status

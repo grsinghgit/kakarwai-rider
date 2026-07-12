@@ -9,6 +9,9 @@ import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.gr.kakarwairider.BookRideFragment
+import com.gr.kakarwairider.HistoryFragment
+import com.gr.kakarwairider.ProfileFragment
 import com.gr.kakarwairider.ui.RideProcessingFragment
 import com.gr.kakarwairider.ui.RideTrackingFragment
 
@@ -78,6 +81,7 @@ class MainActivity2 : AppCompatActivity() {
         }
     }
 
+    // ✅ UPDATED: All active ride statuses
     private fun checkActiveRideAndNavigate(callback: (Boolean) -> Unit) {
         val userId = auth.currentUser?.uid
         if (userId == null) {
@@ -87,7 +91,16 @@ class MainActivity2 : AppCompatActivity() {
 
         db.collection("rides")
             .whereEqualTo("userId", userId)
-            .whereIn("status", listOf("PENDING", "SEARCHING", "DRIVER_ASSIGNED", "ACCEPTED", "STARTED"))
+            .whereIn("status", listOf(
+                "PENDING",
+                "SEARCHING",
+                "DRIVER_ASSIGNED",
+                "ACCEPTED",
+                "STARTED",
+                "ON_THE_WAY",
+                "ARRIVED_PICKUP",
+                "DESTINATION_REACHED"
+            ))
             .get()
             .addOnSuccessListener { documents ->
                 if (!documents.isEmpty()) {
@@ -106,13 +119,14 @@ class MainActivity2 : AppCompatActivity() {
             }
     }
 
+    // ✅ UPDATED: ON_THE_WAY + other tracking statuses
     private fun showActiveRideFragment() {
         val bundle = Bundle().apply {
             putString("rideId", activeRideId)
         }
 
         val fragment = when (rideStatus) {
-            "STARTED" -> {
+            "STARTED", "ON_THE_WAY", "ARRIVED_PICKUP", "DESTINATION_REACHED" -> {
                 RideTrackingFragment().apply { arguments = bundle }
             }
             else -> {
@@ -129,7 +143,6 @@ class MainActivity2 : AppCompatActivity() {
     }
 
     private fun loadFragment(fragment: Fragment, tag: String) {
-        // ✅ Agar fragment already loaded hai toh skip karein
         if (currentFragment.javaClass == fragment.javaClass && currentFragment.isAdded) {
             return
         }
@@ -139,20 +152,17 @@ class MainActivity2 : AppCompatActivity() {
             .replace(containerId, fragment, tag)
             .commit()
 
-        // ✅ Show bottom nav only if no active ride
         if (!isRideActive) {
             bottomNav.visibility = View.VISIBLE
         }
     }
 
-    // ✅ Fixed: Status change handler without loop
     fun onRideStatusChanged(status: String?) {
         when (status) {
             "COMPLETED", "CANCELLED", "EXPIRED" -> {
                 isRideActive = false
                 activeRideId = null
                 bottomNav.visibility = View.VISIBLE
-                // ✅ Directly load home without checking active ride
                 currentFragment = bookRideFragment
                 supportFragmentManager.beginTransaction()
                     .replace(containerId, bookRideFragment, "HOME")
@@ -180,7 +190,6 @@ class MainActivity2 : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // ✅ Only check if no active ride
         if (!isRideActive) {
             checkActiveRideAndNavigate { hasActiveRide ->
                 if (hasActiveRide) {

@@ -71,8 +71,8 @@ class DriverPendingRidesFragment : Fragment() {
                 val destLat = ride.destination?.lat ?: 0.0
                 val destLng = ride.destination?.lng ?: 0.0
 
-                // ✅ Positive check - data available hai toh hi aage badho
                 if (areaId.isNotEmpty() && pickupLat != 0.0 && destLat != 0.0) {
+                    // ✅ Step 1: Calculate Fare
                     viewModel.calculateFareForRide(
                         rideId = ride.rideId,
                         driverId = driverId,
@@ -83,13 +83,26 @@ class DriverPendingRidesFragment : Fragment() {
                         destLng = destLng
                     ) { fareSuccess ->
                         if (fareSuccess) {
-                            viewModel.updateRideStatus(ride.rideId, "ACCEPTED") { success ->
-                                if (success) {
-                                    Toast.makeText(
-                                        requireContext(),
-                                        "✅ Ride Accepted! Fare: ₹${DistanceUtils.formatFareInt(ride.totalFare)}",
-                                        Toast.LENGTH_LONG
-                                    ).show()
+                            // ✅ Step 2: Fetch Driver Details
+                            viewModel.fetchDriverDetails(driverId) { name, phone, vehicle, vehicleNumber ->
+                                // ✅ Step 3: Update Ride with Driver Details + Status
+                                viewModel.updateRideWithDriverDetails(
+                                    rideId = ride.rideId,
+                                    status = "ACCEPTED",
+                                    driverName = name,
+                                    driverPhone = phone,
+                                    driverVehicle = vehicle,
+                                    driverVehicleNumber = vehicleNumber
+                                ) { success ->
+                                    if (success) {
+                                        Toast.makeText(
+                                            requireContext(),
+                                            "✅ Ride Accepted! Fare: ₹${DistanceUtils.formatFareInt(ride.totalFare)}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    } else {
+                                        Toast.makeText(requireContext(), "❌ Failed to update ride", Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
                         } else {

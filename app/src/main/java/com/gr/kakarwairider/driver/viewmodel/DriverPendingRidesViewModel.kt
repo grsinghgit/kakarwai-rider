@@ -20,7 +20,7 @@ class DriverPendingRidesViewModel : ViewModel() {
     private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
 
-    private val _errorMessage = MutableLiveData<String?>(null)
+    private val _errorMessage = MutableLiveData<String?>()
     val errorMessage: LiveData<String?> = _errorMessage
 
     private var listener: com.google.firebase.firestore.ListenerRegistration? = null
@@ -59,10 +59,6 @@ class DriverPendingRidesViewModel : ViewModel() {
                 } ?: emptyList()
 
                 Log.d("PendingRidesVM", "📋 Rides: ${rides.size}")
-                rides.forEach {
-                    Log.d("PendingRidesVM", "   - ${it.rideId}: ${it.status}, Fare: ₹${it.totalFare}")
-                }
-
                 _rides.value = rides.sortedByDescending { it.createdAt?.toDate() }
                 _isLoading.value = false
             }
@@ -75,8 +71,6 @@ class DriverPendingRidesViewModel : ViewModel() {
             callback(false)
             return
         }
-
-        Log.d("PendingRidesVM", "🔄 Updating ride: $rideId → $status")
 
         db.collection("rides").document(rideId)
             .update(
@@ -96,7 +90,174 @@ class DriverPendingRidesViewModel : ViewModel() {
             }
     }
 
-    // ✅ Update ride with Pickup PIN
+    // ✅ Calculate Fare
+    fun calculateFareForRide(
+        rideId: String,
+        driverId: String,
+        areaId: String,
+        pickupLat: Double,
+        pickupLng: Double,
+        destLat: Double,
+        destLng: Double,
+        callback: (Boolean) -> Unit
+    ) {
+        if (rideId.isEmpty() || driverId.isEmpty() || areaId.isEmpty()) {
+            _errorMessage.value = "Missing required data"
+            callback(false)
+            return
+        }
+
+        db.collection("driver_locations").document(driverId)
+            .get()
+            .addOnSuccessListener { driverDoc ->
+                if (!driverDoc.exists()) {
+                    _errorMessage.value = "Driver location not found"
+                    callback(false)
+                    return@addOnSuccessListener
+                }
+
+                val currentLocation = driverDoc.getGeoPoint("currentLocation")
+                if (currentLocation == null) {
+                    _errorMessage.value = "Driver current location not available"
+                    callback(false)
+                    return@addOnSuccessListener
+                }
+
+                val driverLat = currentLocation.latitude
+                val driverLng = currentLocation.longitude
+
+                val pickupDistance = DistanceUtils.calculateDistance(
+                    driverLat, driverLng, pickupLat, pickupLng
+                )
+                val tripDistance = DistanceUtils.calculateDistance(
+                    pickupLat, pickupLng, destLat, destLng
+                )
+                val totalDistance = pickupDistance + tripDistance
+
+                db.collection("areas").document(areaId)
+                    .get()
+                    .addOnSuccessListener { areaDoc ->
+                        if (!areaDoc.exists()) {
+                            _errorMessage.value = "Area not found"
+                            callback(false)
+                            return@addOnSuccessListener
+                        }
+
+                        val perKmRate = areaDoc.getDouble("perKmRate") ?: 10.0
+                        val basePrice = areaDoc.getDouble("basePrice") ?: 30.0
+                        val distanceFare = totalDistance * perKmRate
+                        val totalFare = basePrice + distanceFare
+
+                        val updates = mapOf(
+                            "pickupDistance" to pickupDistance,
+                            "tripDistance" to tripDistance,
+                            "totalDistance" to totalDistance,
+                            "perKmRate" to perKmRate,
+                            "basePrice" to basePrice,
+                            "distanceFare" to distanceFare,
+                            "totalFare" to totalFare,
+                            "fareCalculated" to true,
+                            "updatedAt" to Timestamp.now()
+                        )
+
+                        db.collection("rides").document(rideId)
+                            .update(updates)
+                            .addOnSuccessListener {
+                                Log.d("PendingRidesVM", "✅ Fare calculated: ₹$totalFare")
+                                callback(true)
+                            }
+                            .addOnFailureListener { e ->
+                                Log.e("PendingRidesVM", "❌ Save failed: ${e.message}")
+                                _errorMessage.value = "Failed to save fare: ${e.message}"
+                                callback(false)
+                            }
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e("PendingRidesVM", "❌ Area fetch failed: ${e.message}")
+                        _errorMessage.value = "Failed to fetch area: ${e.message}"
+                        callback(false)
+                    }
+            }
+            .addOnFailureListener { e ->
+                Log.e("PendingRidesVM", "❌ Driver location fetch failed: ${e.message}")
+                _errorMessage.value = "Failed to fetch driver location: ${e.message}"
+                callback(false)
+            }
+    }
+
+    // ✅ Fetch Driver Details from drivers collection
+    fun fetchDriverDetails(
+        driverId: String,
+        callback: (String, String, String, String) -> Unit
+    ) {
+        db.collection("drivers").document(driverId)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    val name = document.getString("name") ?: "Driver"
+                    val phone = document.getString("phone") ?: "N/A"
+                    val vehicleType = document.getString("vehicleType") ?: "Car"
+                    val vehicleModel = document.getString("vehicleModel") ?: ""
+                    val vehicleNumber = document.getString("vehicleNumber") ?: "N/A"
+
+                    val vehicle = if (vehicleModel.isNotEmpty()) {
+                        "$vehicleType $vehicleModel"
+                    } else {
+                        vehicleType
+                    }
+
+                    Log.d("PendingRidesVM", "✅ Driver Details: $name, $phone, $vehicle, $vehicleNumber")
+                    callback(name, phone, vehicle, vehicleNumber)
+                } else {
+                    Log.e("PendingRidesVM", "❌ Driver document not found")
+                    callback("Driver", "N/A", "Car", "N/A")
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e("PendingRidesVM", "❌ Failed to fetch driver: ${e.message}")
+                callback("Driver", "N/A", "Car", "N/A")
+            }
+    }
+
+    // ✅ Update Ride with Driver Details
+    fun updateRideWithDriverDetails(
+        rideId: String,
+        status: String,
+        driverName: String,
+        driverPhone: String,
+        driverVehicle: String,
+        driverVehicleNumber: String,
+        callback: (Boolean) -> Unit
+    ) {
+        if (rideId.isEmpty()) {
+            _errorMessage.value = "Ride ID is empty"
+            callback(false)
+            return
+        }
+
+        val updates = mapOf(
+            "status" to status,
+            "driverName" to driverName,
+            "driverPhone" to driverPhone,
+            "driverVehicle" to driverVehicle,
+            "driverVehicleNumber" to driverVehicleNumber,
+            "updatedAt" to Timestamp.now()
+        )
+
+        db.collection("rides").document(rideId)
+            .update(updates)
+            .addOnSuccessListener {
+                Log.d("PendingRidesVM", "✅ Ride updated with driver details")
+                callback(true)
+            }
+            .addOnFailureListener { e ->
+                Log.e("PendingRidesVM", "❌ Failed to update: ${e.message}")
+                _errorMessage.value = "Failed to update ride: ${e.message}"
+                callback(false)
+            }
+    }
+
+    // ✅ Update ride with PIN
     fun updateRideWithPin(
         rideId: String,
         status: String,
@@ -109,8 +270,6 @@ class DriverPendingRidesViewModel : ViewModel() {
             callback(false)
             return
         }
-
-        Log.d("PendingRidesVM", "📍 Arrived: $rideId, PIN: $pickupPin")
 
         val updates = mapOf(
             "status" to status,
@@ -132,7 +291,7 @@ class DriverPendingRidesViewModel : ViewModel() {
             }
     }
 
-    // ✅ Update ride with Complete PIN (Destination Reached)
+    // ✅ Update ride with Complete PIN
     fun updateRideWithCompletePin(
         rideId: String,
         status: String,
@@ -144,8 +303,6 @@ class DriverPendingRidesViewModel : ViewModel() {
             callback(false)
             return
         }
-
-        Log.d("PendingRidesVM", "📍 Destination Reached: $rideId, Complete PIN: $completePin")
 
         val updates = mapOf(
             "status" to status,
@@ -166,7 +323,7 @@ class DriverPendingRidesViewModel : ViewModel() {
             }
     }
 
-    // ✅ Complete Ride with PIN verification
+    // ✅ Complete Ride with PIN
     fun completeRideWithPin(
         rideId: String,
         enteredPin: String,
@@ -177,8 +334,6 @@ class DriverPendingRidesViewModel : ViewModel() {
             callback(false)
             return
         }
-
-        Log.d("PendingRidesVM", "🔑 Completing ride: $rideId")
 
         db.collection("rides").document(rideId)
             .get()
@@ -212,123 +367,6 @@ class DriverPendingRidesViewModel : ViewModel() {
             .addOnFailureListener { e ->
                 Log.e("PendingRidesVM", "❌ Fetch failed: ${e.message}")
                 _errorMessage.value = "Failed to fetch ride: ${e.message}"
-                callback(false)
-            }
-    }
-
-    // ✅ CALCULATE FARE - Main Function
-    fun calculateFareForRide(
-        rideId: String,
-        driverId: String,
-        areaId: String,
-        pickupLat: Double,
-        pickupLng: Double,
-        destLat: Double,
-        destLng: Double,
-        callback: (Boolean) -> Unit
-    ) {
-        if (rideId.isEmpty() || driverId.isEmpty() || areaId.isEmpty()) {
-            _errorMessage.value = "Missing required data"
-            callback(false)
-            return
-        }
-
-        Log.d("PendingRidesVM", "💰 Calculating fare for ride: $rideId")
-
-        // ✅ Step 1: Fetch Driver Current Location
-        db.collection("driver_locations").document(driverId)
-            .get()
-            .addOnSuccessListener { driverDoc ->
-                if (!driverDoc.exists()) {
-                    _errorMessage.value = "Driver location not found"
-                    callback(false)
-                    return@addOnSuccessListener
-                }
-
-                val currentLocation = driverDoc.getGeoPoint("currentLocation")
-                if (currentLocation == null) {
-                    _errorMessage.value = "Driver current location not available"
-                    callback(false)
-                    return@addOnSuccessListener
-                }
-
-                val driverLat = currentLocation.latitude
-                val driverLng = currentLocation.longitude
-
-                Log.d("PendingRidesVM", "   Driver Location: ($driverLat, $driverLng)")
-
-                // ✅ Step 2: Calculate Distances
-                val pickupDistance = DistanceUtils.calculateDistance(
-                    driverLat, driverLng,
-                    pickupLat, pickupLng
-                )
-
-                val tripDistance = DistanceUtils.calculateDistance(
-                    pickupLat, pickupLng,
-                    destLat, destLng
-                )
-
-                val totalDistance = pickupDistance + tripDistance
-
-                Log.d("PendingRidesVM", "   Pickup Distance: ${DistanceUtils.formatDistance(pickupDistance)} km")
-                Log.d("PendingRidesVM", "   Trip Distance: ${DistanceUtils.formatDistance(tripDistance)} km")
-                Log.d("PendingRidesVM", "   Total Distance: ${DistanceUtils.formatDistance(totalDistance)} km")
-
-                // ✅ Step 3: Fetch Area Details
-                db.collection("areas").document(areaId)
-                    .get()
-                    .addOnSuccessListener { areaDoc ->
-                        if (!areaDoc.exists()) {
-                            _errorMessage.value = "Area not found"
-                            callback(false)
-                            return@addOnSuccessListener
-                        }
-
-                        val perKmRate = areaDoc.getDouble("perKmRate") ?: 10.0
-                        val basePrice = areaDoc.getDouble("basePrice") ?: 30.0
-
-                        val distanceFare = totalDistance * perKmRate
-                        val totalFare = basePrice + distanceFare
-
-                        Log.d("PendingRidesVM", "   Per Km Rate: ₹$perKmRate")
-                        Log.d("PendingRidesVM", "   Base Price: ₹$basePrice")
-                        Log.d("PendingRidesVM", "   Distance Fare: ₹${DistanceUtils.formatFare(distanceFare)}")
-                        Log.d("PendingRidesVM", "   Total Fare: ₹${DistanceUtils.formatFare(totalFare)}")
-
-                        // ✅ Step 4: Save in Ride Document
-                        val updates = mapOf(
-                            "pickupDistance" to pickupDistance,
-                            "tripDistance" to tripDistance,
-                            "totalDistance" to totalDistance,
-                            "perKmRate" to perKmRate,
-                            "basePrice" to basePrice,
-                            "distanceFare" to distanceFare,
-                            "totalFare" to totalFare,
-                            "fareCalculated" to true,
-                            "updatedAt" to Timestamp.now()
-                        )
-
-                        db.collection("rides").document(rideId)
-                            .update(updates)
-                            .addOnSuccessListener {
-                                Log.d("PendingRidesVM", "✅ Fare calculated: ₹${DistanceUtils.formatFare(totalFare)}")
-                                callback(true)
-                            }
-                            .addOnFailureListener { e ->
-                                Log.e("PendingRidesVM", "❌ Save failed: ${e.message}")
-                                _errorMessage.value = "Failed to save fare: ${e.message}"
-                                callback(false)
-                            }
-                    }
-                    .addOnFailureListener { e ->
-                        Log.e("PendingRidesVM", "❌ Area fetch failed: ${e.message}")
-                        _errorMessage.value = "Failed to fetch area: ${e.message}"
-                        callback(false)
-                    }
-            }
-            .addOnFailureListener { e ->
-                Log.e("PendingRidesVM", "❌ Driver location fetch failed: ${e.message}")
-                _errorMessage.value = "Failed to fetch driver location: ${e.message}"
                 callback(false)
             }
     }

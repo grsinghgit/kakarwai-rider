@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,18 +14,21 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Observer
 import androidx.navigation.fragment.findNavController
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.MainActivity2
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.ui.viewmodel.RideProcessingViewModel
 
 class RideProcessingFragment : Fragment() {
 
-    private val db = FirebaseFirestore.getInstance()
+    private val viewModel: RideProcessingViewModel by viewModels()
     private val handler = Handler(Looper.getMainLooper())
 
+    // ✅ Views
     private lateinit var tvTimer: TextView
     private lateinit var tvRideId: TextView
     private lateinit var tvStatus: TextView
@@ -61,28 +65,17 @@ class RideProcessingFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        if (isRideFinished) {
-            return
-        }
+        if (isRideFinished) return
 
         initViews(view)
-
-        (requireActivity() as? MainActivity2)?.hideBottomNav(true)
-
-        requireActivity().onBackPressedDispatcher.addCallback(
-            viewLifecycleOwner,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    Toast.makeText(requireContext(), "⏳ Ride is being processed!", Toast.LENGTH_SHORT).show()
-                }
-            }
-        )
+        setupCallbacks()
+        setupObservers()
 
         rideId = arguments?.getString("rideId")
 
         if (rideId != null) {
-            displayRideDetails()
-            listenForRideUpdates()
+            viewModel.loadRideDetails(rideId!!)
+            viewModel.listenForRideUpdates(rideId!!)
             startTimer()
         } else {
             Toast.makeText(requireContext(), "Ride not found", Toast.LENGTH_SHORT).show()
@@ -113,55 +106,52 @@ class RideProcessingFragment : Fragment() {
         tvDriverVehicle = view.findViewById(R.id.tvDriverVehicle)
     }
 
-    private fun showToast(message: String) {
-        if (isAdded && isFragmentAttached) {
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-        }
-    }
+    private fun setupCallbacks() {
+        (requireActivity() as? MainActivity2)?.hideBottomNav(true)
 
-    private fun goToHome() {
-        if (isNavigating || !isFragmentAttached || !isAdded) return
-        isNavigating = true
-        try {
-            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-            (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
-            findNavController().navigate(R.id.homeFragment)
-        } catch (e: Exception) {
-            android.util.Log.e("RideProcessing", "Navigate error: ${e.message}")
-        } finally {
-            handler.postDelayed({
-                isNavigating = false
-            }, 500)
-        }
-    }
-
-    private fun goToHistory() {
-        if (isNavigating || !isFragmentAttached || !isAdded) return
-        isNavigating = true
-        try {
-            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-            (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
-            findNavController().navigate(R.id.historyFragment)
-        } catch (e: Exception) {
-            android.util.Log.e("RideProcessing", "Navigate error: ${e.message}")
-        } finally {
-            handler.postDelayed({
-                isNavigating = false
-            }, 500)
-        }
-    }
-
-    private fun displayRideDetails() {
-        rideId?.let { id ->
-            db.collection("rides").document(id)
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        val data = document.data ?: return@addOnSuccessListener
-                        updateUI(data)
-                    }
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    Toast.makeText(requireContext(), "⏳ Ride is being processed!", Toast.LENGTH_SHORT).show()
                 }
-        }
+            }
+        )
+    }
+
+    private fun setupObservers() {
+        // ✅ Ride Data Observer
+        viewModel.rideData.observe(viewLifecycleOwner, Observer { data ->
+            data?.let { updateUI(it) }
+        })
+
+        // ✅ Status Observer
+        viewModel.status.observe(viewLifecycleOwner, Observer { status ->
+            handleStatusUpdate(status)
+        })
+
+        // ✅ Driver Details Observer
+        viewModel.driverDetails.observe(viewLifecycleOwner, Observer { driver ->
+            driver?.let {
+                cardDriverDetails.visibility = View.VISIBLE
+                tvDriverName.text = "🚗 ${it.name}"
+                tvDriverPhone.text = "📱 ${it.phone}"
+                tvDriverVehicle.text = "🚙 ${it.vehicle} | ${it.vehicleNumber}"
+            }
+        })
+
+        // ✅ Loading Observer
+        viewModel.isLoading.observe(viewLifecycleOwner, Observer { loading ->
+            progressBar.visibility = if (loading) View.VISIBLE else View.GONE
+        })
+
+        // ✅ Error Observer
+        viewModel.errorMessage.observe(viewLifecycleOwner, Observer { error ->
+            error?.let {
+                Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                viewModel.clearError()
+            }
+        })
     }
 
     private fun updateUI(data: Map<String, Any>) {
@@ -181,33 +171,16 @@ class RideProcessingFragment : Fragment() {
         tvVehicle.text = "$vehicleIcon $vehicleName"
         tvFare.text = "💰 ₹${totalFare.toInt()}"
         cardRideDetails.visibility = View.VISIBLE
-
-        val status = data["status"] as? String ?: "PENDING"
-        handleStatusUpdate(status, data)
     }
 
-    private fun listenForRideUpdates() {
-        rideId?.let { id ->
-            db.collection("rides").document(id)
-                .addSnapshotListener { snapshot, error ->
-                    if (error != null || snapshot == null) return@addSnapshotListener
-                    if (!isFragmentAttached || !isAdded || isRideFinished) return@addSnapshotListener
-
-                    val data = snapshot.data ?: return@addSnapshotListener
-                    val status = data["status"] as? String ?: "PENDING"
-                    handleStatusUpdate(status, data)
-                }
-        }
-    }
-
-    private fun handleStatusUpdate(status: String, data: Map<String, Any>) {
-        if (!isFragmentAttached || !isAdded || isRideFinished) return
+    private fun handleStatusUpdate(status: String) {
+        if (!isFragmentAttached || isRideFinished) return
 
         when (status) {
             "PENDING", "SEARCHING" -> showSearchingState()
-            "DRIVER_ASSIGNED" -> showDriverAssignedState(data)
-            "ACCEPTED" -> onDriverAccepted(data)
-            "STARTED" -> navigateToTracking(data)
+            "DRIVER_ASSIGNED" -> showDriverAssignedState()
+            "ACCEPTED" -> onDriverAccepted()
+            "STARTED" -> navigateToTracking()
             "COMPLETED" -> finishRide("✅ Ride Completed!", R.color.green)
             "REJECTED" -> showRideRejected()
             "CANCELLED" -> showCancelledState()
@@ -226,31 +199,17 @@ class RideProcessingFragment : Fragment() {
         tvTimer.visibility = View.VISIBLE
     }
 
-    private fun showDriverAssignedState(data: Map<String, Any>) {
+    private fun showDriverAssignedState() {
         progressBar.visibility = View.VISIBLE
         tvStatus.text = "⏳ Waiting for Driver Approval..."
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
-
-        val driverName = data["driverName"] as? String ?: "Unknown"
-        val driverPhone = data["driverPhone"] as? String ?: "N/A"
-        val driverVehicle = data["driverVehicle"] as? String ?: "Car"
-        val driverVehicleNumber = data["driverVehicleNumber"] as? String ?: "N/A"
-        val totalFare = data["totalFare"] as? Double ?: 0.0
-
-        tvDriverName.text = "🚗 $driverName"
-        tvDriverPhone.text = "📱 $driverPhone"
-        tvDriverVehicle.text = "🚙 $driverVehicle | $driverVehicleNumber"
-        tvFare.text = "💰 Total Fare: ₹${totalFare.toInt()}"
-        cardDriverDetails.visibility = View.VISIBLE
-
         btnCancel.visibility = View.VISIBLE
         btnStartRide.visibility = View.GONE
         tvTimer.visibility = View.VISIBLE
-
-        showToast("⏳ Waiting for $driverName to accept")
+        showToast("⏳ Waiting for driver to accept")
     }
 
-    private fun onDriverAccepted(data: Map<String, Any>) {
+    private fun onDriverAccepted() {
         countDownTimer?.cancel()
         progressBar.visibility = View.GONE
         btnCancel.visibility = View.GONE
@@ -263,53 +222,32 @@ class RideProcessingFragment : Fragment() {
         showToast("🚗 Driver accepted! Ride is starting...")
 
         rideId?.let { id ->
-            db.collection("rides").document(id)
-                .update("status", "STARTED")
-                .addOnSuccessListener {
+            viewModel.updateRideStatus("STARTED") { success ->
+                if (success) {
                     handler.postDelayed({
                         if (isFragmentAttached && isAdded && !isRideFinished) {
-                            navigateToTracking(data)
+                            navigateToTracking()
                         }
                     }, 800)
                 }
-                .addOnFailureListener { e ->
-                    showToast("Failed to start ride: ${e.message}")
-                }
+            }
         }
     }
 
-    // ✅ FIXED: Navigation to Tracking
-    private fun navigateToTracking(data: Map<String, Any>) {
-        if (!isFragmentAttached || !isAdded || isNavigating || isRideFinished) {
-            android.util.Log.d("RideProcessing", "Cannot navigate: fragment not ready")
-            return
-        }
+    private fun navigateToTracking() {
+        if (!isFragmentAttached || !isAdded || isNavigating || isRideFinished) return
 
         isNavigating = true
         val bundle = Bundle().apply {
-            putString("rideId", data["rideId"] as? String)
+            putString("rideId", rideId)
         }
 
         try {
-            android.util.Log.d("RideProcessing", "Navigating to tracking with rideId: ${data["rideId"]}")
-
-            // ✅ Try findNavController()
-            val navController = findNavController()
-            navController.navigate(R.id.action_processing_to_tracking, bundle)
-            android.util.Log.d("RideProcessing", "✅ Navigation successful via action")
-
+            findNavController().navigate(R.id.action_processing_to_tracking, bundle)
         } catch (e: Exception) {
-            android.util.Log.e("RideProcessing", "Navigation error: ${e.message}")
-
-            // ✅ Try direct fragment navigation
             try {
-                val navController = findNavController()
-                navController.navigate(R.id.rideTrackingFragment, bundle)
-                android.util.Log.d("RideProcessing", "✅ Navigation successful via direct fragment")
+                findNavController().navigate(R.id.rideTrackingFragment, bundle)
             } catch (e2: Exception) {
-                android.util.Log.e("RideProcessing", "Fallback error: ${e2.message}")
-
-                // ✅ Activity transaction fallback
                 try {
                     val fragment = RideTrackingFragment()
                     fragment.arguments = bundle
@@ -318,17 +256,13 @@ class RideProcessingFragment : Fragment() {
                         .replace(R.id.fragment_container, fragment)
                         .addToBackStack(null)
                         .commit()
-                    android.util.Log.d("RideProcessing", "✅ Navigation successful via activity transaction")
                 } catch (e3: Exception) {
-                    android.util.Log.e("RideProcessing", "All navigation methods failed: ${e3.message}")
                     Toast.makeText(requireContext(), "Error opening tracking", Toast.LENGTH_SHORT).show()
                     goToHome()
                 }
             }
         } finally {
-            handler.postDelayed({
-                isNavigating = false
-            }, 500)
+            handler.postDelayed({ isNavigating = false }, 500)
         }
     }
 
@@ -342,9 +276,7 @@ class RideProcessingFragment : Fragment() {
         tvTimer.visibility = View.GONE
 
         showToast("Driver rejected the ride. Please try again.")
-        handler.postDelayed({
-            goToHome()
-        }, 2000)
+        handler.postDelayed({ goToHome() }, 2000)
     }
 
     private fun showCancelledState() {
@@ -408,6 +340,40 @@ class RideProcessingFragment : Fragment() {
         }, 1500)
     }
 
+    private fun showToast(message: String) {
+        if (isAdded && isFragmentAttached) {
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun goToHome() {
+        if (isNavigating || !isFragmentAttached || !isAdded) return
+        isNavigating = true
+        try {
+            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+            (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
+            findNavController().navigate(R.id.homeFragment)
+        } catch (e: Exception) {
+            Log.e("RideProcessing", "Navigate error: ${e.message}")
+        } finally {
+            handler.postDelayed({ isNavigating = false }, 500)
+        }
+    }
+
+    private fun goToHistory() {
+        if (isNavigating || !isFragmentAttached || !isAdded) return
+        isNavigating = true
+        try {
+            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+            (requireActivity() as? MainActivity2)?.onRideStatusChanged("COMPLETED")
+            findNavController().navigate(R.id.historyFragment)
+        } catch (e: Exception) {
+            Log.e("RideProcessing", "Navigate error: ${e.message}")
+        } finally {
+            handler.postDelayed({ isNavigating = false }, 500)
+        }
+    }
+
     // ============================================================
     // ✅ TIMER
     // ============================================================
@@ -434,11 +400,9 @@ class RideProcessingFragment : Fragment() {
 
             override fun onFinish() {
                 if (!isFragmentAttached || isRideFinished) return
-                rideId?.let { id ->
-                    db.collection("rides").document(id)
-                        .update("status", "EXPIRED")
+                viewModel.updateRideStatus("EXPIRED") { success ->
+                    if (success) showExpiredState()
                 }
-                showExpiredState()
             }
         }.start()
     }
@@ -449,18 +413,8 @@ class RideProcessingFragment : Fragment() {
 
     private fun setupListeners() {
         btnRefresh.setOnClickListener {
-            rideId?.let { id ->
-                db.collection("rides").document(id)
-                    .get()
-                    .addOnSuccessListener { document ->
-                        if (document.exists()) {
-                            val data = document.data ?: return@addOnSuccessListener
-                            val status = data["status"] as? String ?: "PENDING"
-                            handleStatusUpdate(status, data)
-                            showToast("Status refreshed")
-                        }
-                    }
-            }
+            rideId?.let { viewModel.loadRideDetails(it) }
+            showToast("Status refreshed")
         }
 
         btnCancel.setOnClickListener {
@@ -471,20 +425,17 @@ class RideProcessingFragment : Fragment() {
     private fun cancelRide() {
         if (isRideFinished || !isAdded) return
 
-        rideId?.let { id ->
-            db.collection("rides").document(id)
-                .update("status", "CANCELLED")
-                .addOnSuccessListener {
-                    countDownTimer?.cancel()
-                    showCancelledState()
-                }
-                .addOnFailureListener { e ->
-                    if (isAdded && isFragmentAttached) {
-                        Toast.makeText(requireContext(), "Failed to cancel ride: ${e.message}", Toast.LENGTH_SHORT).show()
-                    }
-                }
+        viewModel.cancelRide { success ->
+            if (success) {
+                countDownTimer?.cancel()
+                showCancelledState()
+            }
         }
     }
+
+    // ============================================================
+    // ✅ LIFECYCLE
+    // ============================================================
 
     override fun onDestroyView() {
         super.onDestroyView()
