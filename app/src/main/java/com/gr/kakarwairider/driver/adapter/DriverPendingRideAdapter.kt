@@ -1,6 +1,8 @@
 package com.gr.kakarwairider.driver.adapter
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.util.Log
 import android.view.LayoutInflater
@@ -8,9 +10,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.gms.location.LocationServices
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.R
 import com.gr.kakarwairider.model.RideModel
 import com.gr.kakarwairider.utils.DistanceUtils
@@ -28,6 +34,7 @@ class DriverPendingRideAdapter(
 ) : RecyclerView.Adapter<DriverPendingRideAdapter.PendingRideViewHolder>() {
 
     private val dateFormat = SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault())
+    private val db = FirebaseFirestore.getInstance()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PendingRideViewHolder {
         val view = LayoutInflater.from(parent.context)
@@ -45,6 +52,51 @@ class DriverPendingRideAdapter(
         Log.d("PendingRideAdapter", "🔄 updateDrivers: ${newRides.size} rides")
         this.rides = newRides
         notifyDataSetChanged()
+    }
+
+    // ✅ Fallback Function - Database location se open karein
+    private fun openGoogleMapsWithDatabaseLocation(context: android.content.Context, ride: RideModel) {
+        val driverId = ride.driverId
+        if (driverId.isNullOrEmpty()) {
+            Toast.makeText(context, "❌ Driver ID not available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val pickupLat = ride.pickup?.lat ?: 0.0
+        val pickupLng = ride.pickup?.lng ?: 0.0
+        val destLat = ride.destination?.lat ?: 0.0
+        val destLng = ride.destination?.lng ?: 0.0
+
+        if (pickupLat == 0.0 || pickupLng == 0.0 || destLat == 0.0 || destLng == 0.0) {
+            Toast.makeText(context, "❌ Location data not available", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        db.collection("driver_locations").document(driverId)
+            .get()
+            .addOnSuccessListener { document ->
+                val location = document.getGeoPoint("currentLocation")
+                if (location == null) {
+                    Toast.makeText(context, "❌ Driver location not available", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
+
+                val driverLat = location.latitude
+                val driverLng = location.longitude
+
+                Log.d("RouteButton", "📍 Database Driver: ($driverLat, $driverLng)")
+                Log.d("RouteButton", "📍 Pickup: ($pickupLat, $pickupLng)")
+                Log.d("RouteButton", "📍 Destination: ($destLat, $destLng)")
+
+                val uri = Uri.parse(
+                    "https://www.google.com/maps/dir/$driverLat,$driverLng/$pickupLat,$pickupLng/$destLat,$destLng"
+                )
+                val intent = Intent(Intent.ACTION_VIEW, uri)
+                context.startActivity(intent)
+            }
+            .addOnFailureListener {
+                Toast.makeText(context, "❌ Failed to get location", Toast.LENGTH_SHORT).show()
+            }
     }
 
     inner class PendingRideViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -171,22 +223,62 @@ class DriverPendingRideAdapter(
                 context.startActivity(intent)
             }
 
-            // ✅ ROUTE BUTTON
+            // ✅ ROUTE BUTTON - 3 Stops with Live Location
             btnRoute.setOnClickListener {
-                val pickupLat = ride.pickup?.lat
-                val pickupLng = ride.pickup?.lng
-                val destLat = ride.destination?.lat
-                val destLng = ride.destination?.lng
+                val driverId = ride.driverId
+                if (driverId.isNullOrEmpty()) {
+                    Toast.makeText(context, "❌ Driver ID not available", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
 
-                if (pickupLat == null || pickupLng == null || destLat == null || destLng == null) {
+                val pickupLat = ride.pickup?.lat ?: 0.0
+                val pickupLng = ride.pickup?.lng ?: 0.0
+                val destLat = ride.destination?.lat ?: 0.0
+                val destLng = ride.destination?.lng ?: 0.0
+
+                if (pickupLat == 0.0 || pickupLng == 0.0 || destLat == 0.0 || destLng == 0.0) {
                     Toast.makeText(context, "❌ Location data not available", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
                 }
 
-                Log.d("PendingRideAdapter", "🗺️ Route: ($pickupLat, $pickupLng) → ($destLat, $destLng)")
-                val uri = Uri.parse("https://www.google.com/maps/dir/$pickupLat,$pickupLng/$destLat,$destLng")
-                val intent = Intent(Intent.ACTION_VIEW, uri)
-                context.startActivity(intent)
+                // ✅ Check Location Permission
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+                    != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(context, "❌ Location permission not granted", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                // ✅ Get Device's Current Location
+                val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+
+                fusedLocationClient.lastLocation
+                    .addOnSuccessListener { location ->
+                        if (location == null) {
+                            // ✅ Fallback: Database location use karein
+                            Toast.makeText(context, "⚠️ Using saved location", Toast.LENGTH_SHORT).show()
+                            openGoogleMapsWithDatabaseLocation(context, ride)
+                            return@addOnSuccessListener
+                        }
+
+                        val driverLat = location.latitude
+                        val driverLng = location.longitude
+
+                        Log.d("RouteButton", "📍 Live Driver: ($driverLat, $driverLng)")
+                        Log.d("RouteButton", "📍 Pickup: ($pickupLat, $pickupLng)")
+                        Log.d("RouteButton", "📍 Destination: ($destLat, $destLng)")
+
+                        // ✅ Open Google Maps with 3 stops
+                        val uri = Uri.parse(
+                            "https://www.google.com/maps/dir/$driverLat,$driverLng/$pickupLat,$pickupLng/$destLat,$destLng"
+                        )
+                        val intent = Intent(Intent.ACTION_VIEW, uri)
+                        context.startActivity(intent)
+                    }
+                    .addOnFailureListener {
+                        // ✅ Fallback: Database location
+                        Toast.makeText(context, "⚠️ Failed to get live location, using saved location", Toast.LENGTH_SHORT).show()
+                        openGoogleMapsWithDatabaseLocation(context, ride)
+                    }
             }
 
             // ✅ ACCEPT
