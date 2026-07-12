@@ -115,4 +115,8 @@ dependencies {
     implementation("androidx.gridlayout:gridlayout:1.0.0")
     // ✅ Coroutines with Play Services (for Firestore await())
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    // ✅ Razorpay SDK
+    implementation(libs.razorpay.checkout)
+    // ✅ Add these if not present
+    implementation("org.json:json:20230227")
 }

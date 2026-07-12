@@ -2,18 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.gr.kakarwairider">
-
     <!-- Internet Permission -->
-    <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- Network State -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-    <!-- Location Permissions -->
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- Network State -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- Location Permissions -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!-- Foreground Service Permissions -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" /> <!-- Foreground Service Permissions -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" /> <!-- ✅ Android 14+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -28,7 +21,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KakarwaiRider"
         tools:targetApi="31">
-
+        <activity
+            android:name=".PaymentActivity"
+            android:exported="false"
+            android:theme="@style/Theme.KakarwaiRider" />
         <!-- ✅ SplashActivity - LAUNCHER -->
         <activity
             android:name=".SplashActivity"
@@ -37,71 +33,51 @@
             android:theme="@style/Theme.KakarwaiRider">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
-
-        <!-- ✅ MainActivity -->
+        </activity> <!-- ✅ MainActivity -->
         <activity
             android:name=".MainActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <!-- ✅ MainActivity2 -->
+            android:screenOrientation="portrait" /> <!-- ✅ MainActivity2 -->
         <activity
             android:name=".MainActivity2"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <!-- ✅ AdminActivity -->
+            android:screenOrientation="portrait" /> <!-- ✅ AdminActivity -->
         <activity
             android:name=".admin.AdminActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.KakarwaiRider" />
-
-        <!-- ✅ DriverActivity -->
+            android:theme="@style/Theme.KakarwaiRider" /> <!-- ✅ DriverActivity -->
         <activity
             android:name=".driver.DriverActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.KakarwaiRider" />
-
-        <!-- ✅ SearchPlaceActivity -->
+            android:theme="@style/Theme.KakarwaiRider" /> <!-- ✅ SearchPlaceActivity -->
         <activity
             android:name=".SearchPlaceActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <!-- ✅ MapPickerActivity -->
+            android:screenOrientation="portrait" /> <!-- ✅ MapPickerActivity -->
         <activity
             android:name=".MapPickerActivity"
             android:exported="false"
-            android:screenOrientation="portrait" />
-
-        <!-- ✅ LoginActivity - Add if missing -->
+            android:screenOrientation="portrait" /> <!-- ✅ LoginActivity - Add if missing -->
         <activity
             android:name=".LoginActivity"
             android:exported="false"
             android:screenOrientation="portrait"
-            android:windowSoftInputMode="adjustResize|stateHidden" />
-
-        <!-- ✅ Google Maps API Key -->
+            android:windowSoftInputMode="adjustResize|stateHidden" /> <!-- ✅ Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/google_maps_key" />
-
-        <!-- ✅ Places API Key -->
+            android:value="@string/google_maps_key" /> <!-- ✅ Places API Key -->
         <meta-data
             android:name="com.google.android.libraries.places.PLACES_API_KEY"
-            android:value="@string/google_maps_key" />
-
-        <!-- ✅ Driver Location Service -->
+            android:value="@string/google_maps_key" /> <!-- ✅ Driver Location Service -->
         <service
             android:name=".service.DriverLocationService"
             android:exported="false"
             android:foregroundServiceType="location" />
-
     </application>
 
 </manifest>
