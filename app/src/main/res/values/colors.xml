@@ -23,4 +23,27 @@
     <color name="orange">#FF9800</color>
     <color name="red">#F44336</color>
     <color name="orange_light">#FFF3E0</color>
+
+    <!-- ✅ TOGGLE SWITCH COLORS - ADD KAREIN -->
+    <!-- Green - Active State -->
+    <color name="green_light">#A5D6A7</color>
+    <color name="green_dark">#388E3C</color>
+
+    <!-- Red - Inactive State -->
+    <color name="red_light">#EF9A9A</color>
+    <color name="red_dark">#C62828</color>
+
+    <!-- Grey - Disabled/Default State -->
+    <color name="grey_light">#BDBDBD</color>
+    <color name="grey_dark">#616161</color>
+
+    <!-- ✅ SWITCH TRACK COLORS -->
+    <color name="switch_track_active">#A5D6A7</color>   <!-- Light Green -->
+    <color name="switch_track_inactive">#EF9A9A</color> <!-- Light Red -->
+    <color name="switch_track_default">#BDBDBD</color>  <!-- Light Grey -->
+
+    <!-- ✅ SWITCH THUMB COLORS -->
+    <color name="switch_thumb_active">#4CAF50</color>   <!-- Green -->
+    <color name="switch_thumb_inactive">#F44336</color> <!-- Red -->
+    <color name="switch_thumb_default">#FFFFFF</color>  <!-- White -->
 </resources>
