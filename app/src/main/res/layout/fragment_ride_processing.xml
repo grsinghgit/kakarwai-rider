@@ -9,7 +9,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:paddingBottom="80dp">
 
         <!-- Ride ID -->
         <TextView
@@ -32,7 +33,7 @@
             android:textColor="@color/orange"
             android:layout_marginBottom="8dp" />
 
-        <!-- Timer (Only after ACCEPTED) -->
+        <!-- Timer -->
         <TextView
             android:id="@+id/tvTimer"
             android:layout_width="wrap_content"
@@ -43,7 +44,18 @@
             android:layout_marginBottom="12dp"
             android:visibility="gone" />
 
-        <!-- Progress Bar (Searching state) -->
+        <!-- ✅ CANCEL BUTTON - Top par (Status ke neeche) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancel"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:text="❌ Cancel Ride"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:textColor="@color/red"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone" />
+
+        <!-- Progress Bar -->
         <ProgressBar
             android:id="@+id/progressBar"
             android:layout_width="wrap_content"
@@ -51,7 +63,7 @@
             android:layout_marginBottom="16dp"
             android:visibility="gone" />
 
-        <!-- ✅ RIDE DETAILS CARD -->
+        <!-- RIDE DETAILS CARD -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardRideDetails"
             android:layout_width="match_parent"
@@ -99,13 +111,16 @@
                     android:textSize="14sp"
                     android:layout_marginBottom="4dp" />
 
+                <!-- ✅ Distance Breakdown -->
                 <TextView
-                    android:id="@+id/tvDistance"
+                    android:id="@+id/tvDistanceBreakdown"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="📍 5.2 km"
-                    android:textSize="14sp"
-                    android:layout_marginBottom="4dp" />
+                    android:text="📍 5.2km + 8.3km = 13.5km"
+                    android:textSize="13sp"
+                    android:textColor="@color/grey"
+                    android:layout_marginBottom="4dp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/tvDuration"
@@ -115,19 +130,31 @@
                     android:textSize="14sp"
                     android:layout_marginBottom="4dp" />
 
+                <!-- ✅ Estimated Fare -->
                 <TextView
-                    android:id="@+id/tvFare"
+                    android:id="@+id/tvEstimatedFare"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="💰 ₹170"
+                    android:text="💰 Estimated Fare: ₹170"
                     android:textSize="16sp"
                     android:textStyle="bold"
-                    android:textColor="@color/primary" />
+                    android:textColor="@color/orange" />
+
+                <!-- ✅ Total Fare -->
+                <TextView
+                    android:id="@+id/tvTotalFare"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="💰 Total Fare: ₹170"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/green"
+                    android:visibility="gone" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ✅ DRIVER DETAILS CARD -->
+        <!-- DRIVER DETAILS CARD -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardDriverDetails"
             android:layout_width="match_parent"
@@ -151,13 +178,33 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
 
-                <TextView
-                    android:id="@+id/tvDriverName"
-                    android:layout_width="wrap_content"
+                <!-- Driver Name + Call Button -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="🚗 Amit Kumar"
-                    android:textSize="14sp"
-                    android:layout_marginBottom="4dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tvDriverName"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="🚗 Amit Kumar"
+                        android:textSize="14sp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCallDriver"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:text="📞 Call"
+                        app:cornerRadius="8dp"
+                        android:textSize="11sp"
+                        app:backgroundTint="@color/blue"
+                        android:textColor="@color/white"
+                        android:visibility="gone" />
+
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvDriverPhone"
@@ -165,19 +212,21 @@
                     android:layout_height="wrap_content"
                     android:text="📱 +91 9876543210"
                     android:textSize="14sp"
-                    android:layout_marginBottom="4dp" />
+                    android:layout_marginTop="4dp"
+                    android:visibility="gone" />
 
                 <TextView
                     android:id="@+id/tvDriverVehicle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="🚙 Swift | HR26AB1234"
-                    android:textSize="14sp" />
+                    android:textSize="14sp"
+                    android:layout_marginTop="4dp" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ✅ PAYMENT SECTION (Only after ACCEPTED) -->
+        <!-- PAYMENT SECTION -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/cardPayment"
             android:layout_width="match_parent"
@@ -201,7 +250,6 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="8dp" />
 
-                <!-- Cash Radio -->
                 <RadioButton
                     android:id="@+id/rbCash"
                     android:layout_width="wrap_content"
@@ -210,7 +258,6 @@
                     android:checked="true"
                     android:layout_marginBottom="8dp" />
 
-                <!-- Online Radio (Blur/Disabled) -->
                 <RadioButton
                     android:id="@+id/rbOnline"
                     android:layout_width="wrap_content"
@@ -230,7 +277,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ✅ CONFIRM BUTTON (Only after ACCEPTED) -->
+        <!-- CONFIRM BUTTON -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnConfirmRide"
             android:layout_width="match_parent"
@@ -238,17 +285,8 @@
             android:text="✅ Confirm &amp; Start Ride"
             app:cornerRadius="12dp"
             android:visibility="gone"
+            android:layout_marginBottom="16dp"
             app:backgroundTint="@color/green" />
-
-        <!-- Cancel Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCancel"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:text="❌ Cancel Ride"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:textColor="@color/red"
-            android:visibility="gone" />
 
         <!-- Refresh Button -->
         <com.google.android.material.button.MaterialButton
@@ -259,6 +297,7 @@
             style="@style/Widget.Material3.Button.TextButton"
             android:textColor="@color/primary"
             android:layout_gravity="center_horizontal"
+            android:layout_marginTop="8dp"
             android:visibility="gone" />
 
     </LinearLayout>

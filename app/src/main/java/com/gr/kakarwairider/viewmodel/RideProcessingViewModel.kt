@@ -182,6 +182,14 @@ class RideProcessingViewModel : ViewModel() {
         _errorMessage.value = null
     }
 
+    fun stopListening() {
+        listener?.remove()
+        driverListener?.remove()
+        listener = null
+        driverListener = null
+        Log.d(TAG, "🔇 Listeners stopped")
+    }
+
     override fun onCleared() {
         super.onCleared()
         listener?.remove()
