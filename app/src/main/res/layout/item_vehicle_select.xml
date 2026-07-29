@@ -2,66 +2,60 @@
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cardVehicle"
-    android:layout_width="120dp"
-    android:layout_height="100dp"
-    android:layout_margin="4dp"
+    android:layout_width="100dp"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="8dp"
     app:cardCornerRadius="12dp"
     app:cardElevation="2dp">
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp">
+        android:layout_height="wrap_content"
+        android:padding="12dp">
 
+        <!-- ✅ Selection Indicator -->
         <View
             android:id="@+id/viewSelected"
-            android:layout_width="4dp"
-            android:layout_height="match_parent"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
             android:background="@color/primary"
-            android:layout_alignParentStart="true"
             android:visibility="gone" />
 
+        <!-- ✅ Vehicle Icon -->
         <TextView
             android:id="@+id/tvVehicleIcon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🚗"
-            android:textSize="32sp"
             android:layout_centerHorizontal="true"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="8dp"
+            android:text="🚗"
+            android:textSize="28sp" />
 
+        <!-- ✅ Vehicle Name -->
         <TextView
             android:id="@+id/tvVehicleName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Car"
-            android:textSize="14sp"
-            android:textStyle="bold"
             android:layout_below="@id/tvVehicleIcon"
-            android:layout_centerHorizontal="true" />
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="4dp"
+            android:text="Car"
+            android:textSize="12sp"
+            android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tvVehiclePerKm"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="₹12/km"
-            android:textSize="10sp"
-            android:textColor="@color/grey"
-            android:layout_below="@id/tvVehicleName"
-            android:layout_centerHorizontal="true" />
-
+        <!-- ✅ Vehicle Price (Full Details) -->
         <TextView
             android:id="@+id/tvVehiclePrice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="₹50"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:textColor="@color/primary"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:layout_marginEnd="4dp"
-            android:layout_marginBottom="4dp" />
+            android:layout_below="@id/tvVehicleName"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="2dp"
+            android:text="₹50 + ₹12/km"
+            android:textSize="10sp"
+            android:textColor="@color/grey" />
+
+        <!-- ❌ tvVehiclePerKm DELETE KARO - Duplicate hai -->
 
     </RelativeLayout>
 

@@ -10,7 +10,7 @@ import com.gr.kakarwairider.R
 import com.gr.kakarwairider.model.VehicleOption
 
 class VehicleSelectionAdapter(
-    private val vehicles: List<VehicleOption>,
+    private var vehicles: List<VehicleOption>,
     private val onVehicleSelected: (VehicleOption) -> Unit
 ) : RecyclerView.Adapter<VehicleSelectionAdapter.VehicleViewHolder>() {
 
@@ -28,7 +28,6 @@ class VehicleSelectionAdapter(
         holder.bind(vehicle, isSelected)
 
         holder.itemView.setOnClickListener {
-            // ✅ Use getAdapterPosition() instead of position directly
             val currentPosition = holder.adapterPosition
             if (currentPosition != RecyclerView.NO_POSITION) {
                 val previousSelected = selectedPosition
@@ -42,6 +41,12 @@ class VehicleSelectionAdapter(
 
     override fun getItemCount(): Int = vehicles.size
 
+    fun updateVehicles(newVehicles: List<VehicleOption>) {
+        this.vehicles = newVehicles
+        selectedPosition = 0
+        notifyDataSetChanged()
+    }
+
     fun setSelectedPosition(position: Int) {
         selectedPosition = position
         notifyDataSetChanged()
@@ -51,7 +56,7 @@ class VehicleSelectionAdapter(
         private val tvIcon: TextView = itemView.findViewById(R.id.tvVehicleIcon)
         private val tvName: TextView = itemView.findViewById(R.id.tvVehicleName)
         private val tvPrice: TextView = itemView.findViewById(R.id.tvVehiclePrice)
-        private val tvPerKm: TextView = itemView.findViewById(R.id.tvVehiclePerKm)
+       // private val tvPerKm: TextView = itemView.findViewById(R.id.tvVehiclePerKm)
         private val cardView: CardView = itemView.findViewById(R.id.cardVehicle)
         private val viewSelected: View = itemView.findViewById(R.id.viewSelected)
 
@@ -59,7 +64,7 @@ class VehicleSelectionAdapter(
             tvIcon.text = vehicle.icon
             tvName.text = vehicle.name
             tvPrice.text = "₹${vehicle.basePrice.toInt()} + ₹${vehicle.perKmRate.toInt()}/km"
-            tvPerKm.text = "₹${vehicle.perKmRate.toInt()}/km"
+           // tvPerKm.text = "₹${vehicle.perKmRate.toInt()}/km"
 
             if (isSelected) {
                 viewSelected.visibility = View.VISIBLE

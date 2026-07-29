@@ -9,6 +9,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.model.LocationData
 import com.gr.kakarwairider.model.RideModel
+import com.gr.kakarwairider.model.VehicleOption
+import com.gr.kakarwairider.utils.DistanceUtils
 import java.util.*
 
 class BookRideViewModel : ViewModel() {
@@ -26,8 +28,119 @@ class BookRideViewModel : ViewModel() {
     private val _errorMessage = MutableLiveData<String?>(null)
     val errorMessage: LiveData<String?> = _errorMessage
 
+    // ✅ LiveData for Area Vehicles
+    private val _areaVehicles = MutableLiveData<List<VehicleOption>>(emptyList())
+    val areaVehicles: LiveData<List<VehicleOption>> = _areaVehicles
+
+    private var currentAreaId: String? = null
+    private var currentAreaAdminId: String? = null
+
     // ============================================================
-    // ✅ BOOK RIDE – Complete Function
+    // ✅ FETCH VEHICLES FROM AREA
+    // ============================================================
+
+    fun fetchVehiclesForArea(pickupLat: Double, pickupLng: Double) {
+        _isLoading.value = true
+
+        findNearestArea(pickupLat, pickupLng) { areaId, adminId, vehicleRates ->
+            if (areaId == null || vehicleRates == null) {
+                _errorMessage.value = "No vehicles available in your area"
+                _isLoading.value = false
+                return@findNearestArea
+            }
+
+            currentAreaId = areaId
+            currentAreaAdminId = adminId
+
+            // ✅ Convert Map to List of VehicleOption
+            val vehicles = mutableListOf<VehicleOption>()
+            vehicleRates.forEach { (key, value) ->
+                val data = value as? Map<*, *>
+                if (data != null) {
+                    val icon = data["icon"] as? String ?: "🚗"
+                    val name = data["name"] as? String ?: key
+                    val basePrice = (data["basePrice"] as? Number)?.toDouble() ?: 0.0
+                    val perKmRate = (data["perKmRate"] as? Number)?.toDouble() ?: 0.0
+                    val perMinRate = (data["perMinRate"] as? Number)?.toDouble() ?: 1.0
+
+                    vehicles.add(
+                        VehicleOption(
+                            type = key,
+                            icon = icon,
+                            name = name,
+                            basePrice = basePrice,
+                            perKmRate = perKmRate,
+                            perMinRate = perMinRate
+                        )
+                    )
+                }
+            }
+
+            _areaVehicles.value = vehicles
+            _isLoading.value = false
+            Log.d(TAG, "✅ Loaded ${vehicles.size} vehicles from area")
+        }
+    }
+
+    // ============================================================
+    // ✅ FIND NEAREST AREA
+    // ============================================================
+
+    private fun findNearestArea(
+        userLat: Double,
+        userLng: Double,
+        callback: (areaId: String?, adminId: String?, vehicleRates: Map<String, Any>?) -> Unit
+    ) {
+        db.collection("areas")
+            .whereEqualTo("isActive", true)
+            .get()
+            .addOnSuccessListener { documents ->
+                if (documents.isEmpty()) {
+                    Log.d(TAG, "No active areas found")
+                    callback(null, null, null)
+                    return@addOnSuccessListener
+                }
+
+                var nearestAreaId: String? = null
+                var nearestAdminId: String? = null
+                var nearestVehicleRates: Map<String, Any>? = null
+                var minDistance = Double.MAX_VALUE
+
+                for (document in documents) {
+                    val center = document.getGeoPoint("center")
+                    val radiusKm = document.getDouble("radiusKm") ?: 50.0
+                    val areaId = document.id
+                    val adminId = document.getString("adminId")
+                    val vehicleRates = document.get("vehicleRates") as? Map<String, Any>
+
+                    if (center != null) {
+                        val distance = DistanceUtils.calculateDistance(
+                            userLat, userLng,
+                            center.latitude, center.longitude
+                        )
+
+                        if (distance <= radiusKm && distance < minDistance) {
+                            minDistance = distance
+                            nearestAreaId = areaId
+                            nearestAdminId = adminId
+                            nearestVehicleRates = vehicleRates
+                        }
+                    }
+                }
+
+                if (nearestAreaId != null) {
+                    callback(nearestAreaId, nearestAdminId, nearestVehicleRates)
+                } else {
+                    callback(null, null, null)
+                }
+            }
+            .addOnFailureListener {
+                callback(null, null, null)
+            }
+    }
+
+    // ============================================================
+    // ✅ BOOK RIDE (UPDATED - No API)
     // ============================================================
 
     fun bookRide(
@@ -58,95 +171,36 @@ class BookRideViewModel : ViewModel() {
             return
         }
 
-        Log.d(TAG, "User logged in: ${currentUser.uid}")
+        val areaId = currentAreaId
+        val adminId = currentAreaAdminId
 
-        // Find area based on user location
-        findNearestArea(pickupLat, pickupLng) { areaId, adminId ->
-            if (areaId == null) {
-                Log.e(TAG, "No area found")
-                _errorMessage.value = "Service not available in your area"
-                _isLoading.value = false
-                return@findNearestArea
-            }
-
-            Log.d(TAG, "Area found: $areaId")
-
-            createRide(
-                rideId = db.collection("rides").document().id,
-                userId = currentUser.uid,
-                userPhone = currentUser.phoneNumber ?: "",
-                pickupAddress = pickupAddress,
-                pickupLat = pickupLat,
-                pickupLng = pickupLng,
-                destinationAddress = destinationAddress,
-                destinationLat = destinationLat,
-                destinationLng = destinationLng,
-                vehicleType = vehicleType,
-                vehicleIcon = vehicleIcon,
-                vehicleName = vehicleName,
-                distance = distance,
-                duration = duration,
-                basePrice = basePrice,
-                perKmRate = perKmRate,
-                totalFare = totalFare,
-                areaId = areaId,
-                adminId = adminId
-            )
+        if (areaId == null) {
+            _errorMessage.value = "No area found for your location"
+            _isLoading.value = false
+            return
         }
-    }
 
-    // ============================================================
-    // ✅ FIND NEAREST AREA
-    // ============================================================
-
-    private fun findNearestArea(
-        userLat: Double,
-        userLng: Double,
-        callback: (areaId: String?, adminId: String?) -> Unit
-    ) {
-        db.collection("areas")
-            .whereEqualTo("isActive", true)
-            .get()
-            .addOnSuccessListener { documents ->
-                if (documents.isEmpty()) {
-                    Log.d(TAG, "No active areas found")
-                    callback(null, null)
-                    return@addOnSuccessListener
-                }
-
-                var nearestAreaId: String? = null
-                var nearestAdminId: String? = null
-                var minDistance = Double.MAX_VALUE
-
-                for (document in documents) {
-                    val center = document.getGeoPoint("center")
-                    val radiusKm = document.getDouble("radiusKm") ?: 50.0
-                    val areaId = document.id
-                    val adminId = document.getString("adminId")
-
-                    if (center != null) {
-                        val distance = calculateDistance(
-                            userLat, userLng,
-                            center.latitude, center.longitude
-                        )
-
-                        if (distance <= radiusKm && distance < minDistance) {
-                            minDistance = distance
-                            nearestAreaId = areaId
-                            nearestAdminId = adminId
-                        }
-                    }
-                }
-
-                if (nearestAreaId != null) {
-                    callback(nearestAreaId, nearestAdminId)
-                } else {
-                    callback(null, null)
-                }
-            }
-            .addOnFailureListener {
-                callback(null, null)
-            }
+        createRide(
+            rideId = db.collection("rides").document().id,
+            userId = currentUser.uid,
+            userPhone = currentUser.phoneNumber ?: "",
+            pickupAddress = pickupAddress,
+            pickupLat = pickupLat,
+            pickupLng = pickupLng,
+            destinationAddress = destinationAddress,
+            destinationLat = destinationLat,
+            destinationLng = destinationLng,
+            vehicleType = vehicleType,
+            vehicleIcon = vehicleIcon,
+            vehicleName = vehicleName,
+            distance = distance,
+            duration = duration,
+            basePrice = basePrice,
+            perKmRate = perKmRate,
+            totalFare = totalFare,
+            areaId = areaId,
+            adminId = adminId
+        )
     }
 
     // ============================================================
@@ -263,21 +317,6 @@ class BookRideViewModel : ViewModel() {
                 _isLoading.value = false
                 _errorMessage.value = "Failed to book ride: ${e.message}"
             }
-    }
-
-    // ============================================================
-    // ✅ DISTANCE CALCULATION
-    // ============================================================
-
-    private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
-        val R = 6371.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLng = Math.toRadians(lng2 - lng1)
-        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-                Math.sin(dLng / 2) * Math.sin(dLng / 2)
-        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        return R * c
     }
 
     fun clearError() {

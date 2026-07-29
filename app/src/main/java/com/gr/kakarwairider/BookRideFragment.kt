@@ -22,7 +22,6 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.*
@@ -36,13 +35,10 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.gr.kakarwairider.adapter.VehicleSelectionAdapter
-import com.gr.kakarwairider.api.DistanceMatrixResponse
-import com.gr.kakarwairider.api.GoogleMapsApiService
 import com.gr.kakarwairider.model.VehicleOption
 import com.gr.kakarwairider.ui.RideProcessingFragment
+import com.gr.kakarwairider.utils.DistanceUtils
 import com.gr.kakarwairider.viewmodel.BookRideViewModel
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import java.io.IOException
 import java.util.*
 
@@ -75,13 +71,12 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
     private lateinit var vehicleAdapter: VehicleSelectionAdapter
     private var selectedVehicle: VehicleOption? = null
+    private var areaVehicles: List<VehicleOption> = emptyList()
 
     private val viewModel: BookRideViewModel by viewModels()
     private val db = FirebaseFirestore.getInstance()
     private var locationDialog: AlertDialog? = null
 
-    private val PER_KM_RATE = 12.0
-    private val BASE_FARE = 50.0
     private val LOCATION_PERMISSION_REQUEST = 200
 
     override fun onCreateView(
@@ -98,23 +93,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         initViews(view)
         setupVehicleSelection()
 
-        arguments?.let {
-            val vehicleType = it.getString("vehicleType") ?: "car"
-            val vehicleIcon = it.getString("vehicleIcon") ?: "🚗"
-            val vehicleName = it.getString("vehicleName") ?: "Car"
-            val distance = it.getFloat("distance") ?: 0.0f
-            val duration = it.getInt("duration") ?: 0
-            val totalFare = it.getFloat("totalFare") ?: 0.0f
-
-            distanceValue = distance.toDouble()
-            durationValue = duration
-            fareValue = totalFare.toDouble()
-
-            tvDistance.text = "📍 Distance: %.1f km".format(distance)
-            tvDuration.text = "⏱️ Time: %d min".format(duration)
-            tvFare.text = "$vehicleIcon $vehicleName: ₹${totalFare.toInt()}"
-        }
-
         val mapFragment = childFragmentManager.findFragmentById(R.id.mapFragment) as? SupportMapFragment
         mapFragment?.getMapAsync(this)
 
@@ -123,6 +101,22 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         setupListeners()
         checkLocationPermissionAndEnable()
 
+        // ✅ Observe Area Vehicles
+        viewModel.areaVehicles.observe(viewLifecycleOwner) { vehicles ->
+            areaVehicles = vehicles
+            if (vehicles.isNotEmpty()) {
+                vehicleAdapter.updateVehicles(vehicles)
+                selectedVehicle = vehicles.firstOrNull()
+                if (distanceValue > 0 && selectedVehicle != null) {
+                    calculateFareWithVehicle(selectedVehicle!!)
+                }
+            } else {
+                Toast.makeText(requireContext(), "No vehicles available in this area", Toast.LENGTH_SHORT).show()
+                btnBookNow.isEnabled = false
+            }
+        }
+
+        // ✅ Observe Ride Creation
         viewModel.rideCreated.observe(viewLifecycleOwner) { ride ->
             if (ride != null) {
                 val bundle = Bundle().apply {
@@ -136,11 +130,13 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                     putString("vehicleIcon", ride.vehicleIcon)
                     putString("vehicleName", ride.vehicleName)
                 }
-                // ✅ Safe Navigation using activity
-                activity?.supportFragmentManager?.beginTransaction()
-                    ?.replace(R.id.fragment_container, RideProcessingFragment::class.java, bundle)
-                    ?.addToBackStack(null)
-                    ?.commit()
+                val fragment = RideProcessingFragment()
+                fragment.arguments = bundle
+                requireActivity().supportFragmentManager
+                    .beginTransaction()
+                    .replace(R.id.fragment_container, fragment)
+                    .addToBackStack(null)
+                    .commit()
             }
         }
 
@@ -172,8 +168,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun setupVehicleSelection() {
-        val vehicles = VehicleOption.getDefaultVehicles()
-        vehicleAdapter = VehicleSelectionAdapter(vehicles) { vehicle ->
+        vehicleAdapter = VehicleSelectionAdapter(emptyList()) { vehicle ->
             selectedVehicle = vehicle
             if (distanceValue > 0) {
                 calculateFareWithVehicle(vehicle)
@@ -181,9 +176,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         }
         vehicleRecyclerView.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         vehicleRecyclerView.adapter = vehicleAdapter
-
-        selectedVehicle = vehicles[1]
-        vehicleAdapter.setSelectedPosition(1)
     }
 
     private fun calculateFareWithVehicle(vehicle: VehicleOption) {
@@ -192,6 +184,67 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         fareValue = totalFare
         tvFare.text = "${vehicle.icon} ${vehicle.name}: ₹${totalFare.toInt()}"
         btnBookNow.isEnabled = true
+    }
+
+    // ✅ UPDATED: No API - Direct Haversine Calculation
+    private fun calculateDistanceAndFare() {
+        if (pickupLatLng == null || destinationLatLng == null) {
+            Toast.makeText(requireContext(), "Please select both locations", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        tvDistance.text = "📍 Calculating distance..."
+        tvDuration.text = "⏱️ Calculating..."
+        tvFare.text = "💰 Calculating fare..."
+        btnBookNow.isEnabled = false
+
+        // ✅ Haversine Formula - No API!
+        val distance = DistanceUtils.calculateDistance(
+            pickupLatLng!!.latitude,
+            pickupLatLng!!.longitude,
+            destinationLatLng!!.latitude,
+            destinationLatLng!!.longitude
+        )
+
+        distanceValue = distance
+
+        // ✅ Estimate duration (Average speed: 30 km/h = 0.5 km/min)
+        val estimatedDuration = (distance / 0.5).toInt()
+        durationValue = estimatedDuration
+
+        tvDistance.text = "📍 Distance: %.1f km".format(distance)
+        tvDuration.text = "⏱️ Time: %d min".format(estimatedDuration)
+
+        // ✅ Draw route on map
+        drawRoute()
+
+        // ✅ Fetch vehicles for this area
+        viewModel.fetchVehiclesForArea(
+            pickupLatLng!!.latitude,
+            pickupLatLng!!.longitude
+        )
+    }
+
+    private fun drawRoute() {
+        if (pickupLatLng == null || destinationLatLng == null) return
+
+        mMap.clear()
+        addMarker(pickupLatLng!!, "Pickup")
+        addMarker(destinationLatLng!!, "Destination")
+
+        val polylineOptions = PolylineOptions()
+            .add(pickupLatLng!!, destinationLatLng!!)
+            .width(8f)
+            .color(0xFF2196F3.toInt())
+            .geodesic(true)
+        mMap.addPolyline(polylineOptions)
+
+        // ✅ Center map on both points
+        val builder = LatLngBounds.Builder()
+        builder.include(pickupLatLng!!)
+        builder.include(destinationLatLng!!)
+        val bounds = builder.build()
+        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 100))
     }
 
     private fun setupListeners() {
@@ -272,7 +325,13 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                     val bundle = Bundle().apply {
                         putString("rideId", rideId)
                     }
-                    findNavController().navigate(R.id.action_ride_to_processing, bundle)
+                    val fragment = RideProcessingFragment()
+                    fragment.arguments = bundle
+                    requireActivity().supportFragmentManager
+                        .beginTransaction()
+                        .replace(R.id.fragment_container, fragment)
+                        .addToBackStack(null)
+                        .commit()
                 }
             }
             .addOnFailureListener {
@@ -281,7 +340,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     }
 
     // ============================================================
-    // LOCATION FUNCTIONS
+    // LOCATION FUNCTIONS (Unchanged - Keep as is)
     // ============================================================
 
     private fun checkLocationPermissionAndEnable() {
@@ -473,16 +532,13 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
         if (isPickupSelected) {
             pickupLatLng = latLng
-            mMap.clear()
-            addMarker(latLng, "Pickup")
-            currentLocation?.let { drawRadiusCircle(it, 50000.0) }
         } else {
             destinationLatLng = latLng
-            addMarker(latLng, "Destination")
         }
 
         if (pickupLatLng != null && destinationLatLng != null) {
-            calculateRouteAndFare(pickupLatLng!!, destinationLatLng!!)
+            // ✅ Calculate distance without API
+            calculateDistanceAndFare()
         }
     }
 
@@ -503,7 +559,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     private fun openSearchPlace() {
         val intent = Intent(requireContext(), SearchPlaceActivity::class.java)
 
-        // ✅ If currentLocation is null, use Delhi as default
         val locationToSend = currentLocation ?: LatLng(28.6139, 77.2090)
         intent.putExtra("current_location", locationToSend)
 
@@ -538,99 +593,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
             Toast.makeText(requireContext(), "Failed to get location", Toast.LENGTH_SHORT).show()
         }
     }
-
-    // ============================================================
-    // ROUTE AND FARE CALCULATION
-    // ============================================================
-
-    private fun calculateRouteAndFare(origin: LatLng, destination: LatLng) {
-        tvDistance.text = "📍 Calculating distance..."
-        tvDuration.text = "⏱️ Please wait..."
-        tvFare.text = "💰 Calculating fare..."
-        btnBookNow.isEnabled = false
-        btnBookNow.text = "⏳ Calculating..."
-
-        val apiKey = getString(R.string.google_maps_key)
-        val origins = "${origin.latitude},${origin.longitude}"
-        val destinations = "${destination.latitude},${destination.longitude}"
-
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://maps.googleapis.com/maps/api/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-
-        val apiService = retrofit.create(GoogleMapsApiService::class.java)
-
-        apiService.getDistanceMatrix(origins, destinations, apiKey)
-            .enqueue(object : retrofit2.Callback<DistanceMatrixResponse> {
-                override fun onResponse(
-                    call: retrofit2.Call<DistanceMatrixResponse>,
-                    response: retrofit2.Response<DistanceMatrixResponse>
-                ) {
-                    if (response.isSuccessful) {
-                        val data = response.body()
-                        if (data?.status == "OK") {
-                            val element = data.rows?.firstOrNull()?.elements?.firstOrNull()
-                            if (element?.status == "OK") {
-                                val distanceInMeters = element.distance?.value ?: 0
-                                distanceValue = distanceInMeters / 1000.0
-                                val durationInSeconds = element.duration?.value ?: 0
-                                durationValue = durationInSeconds / 60
-
-                                tvDistance.text = "📍 Distance: %.1f km".format(distanceValue)
-                                tvDuration.text = "⏱️ Time: %d min".format(durationValue)
-
-                                selectedVehicle?.let {
-                                    calculateFareWithVehicle(it)
-                                } ?: run {
-                                    val defaultVehicle = VehicleOption.getDefaultVehicles()[1]
-                                    selectedVehicle = defaultVehicle
-                                    calculateFareWithVehicle(defaultVehicle)
-                                }
-
-                                btnBookNow.text = "🚗 Book Now"
-                                drawRoute(origin, destination)
-                            } else {
-                                showCalculationError()
-                            }
-                        } else {
-                            showCalculationError()
-                        }
-                    } else {
-                        showCalculationError()
-                    }
-                }
-
-                override fun onFailure(
-                    call: retrofit2.Call<DistanceMatrixResponse>,
-                    t: Throwable
-                ) {
-                    showCalculationError()
-                    t.printStackTrace()
-                }
-            })
-    }
-
-    private fun showCalculationError() {
-        tvDistance.text = "⚠️ Failed to calculate"
-        tvDuration.text = "Please try again"
-        tvFare.text = "₹ ---"
-        btnBookNow.isEnabled = false
-        Toast.makeText(requireContext(), "Failed to calculate distance. Please try again.", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun drawRoute(origin: LatLng, destination: LatLng) {
-        val polylineOptions = PolylineOptions()
-            .add(origin, destination)
-            .width(8f)
-            .color(0xFF2196F3.toInt())
-            .geodesic(true)
-        mMap.addPolyline(polylineOptions)
-    }
-
-    // ============================================================
-    // PERMISSION RESULT
-    // ============================================================
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
