@@ -97,7 +97,7 @@ class RideProcessingFragment : Fragment() {
             viewModel.listenForRideUpdates(rideId!!)
         } else {
             Toast.makeText(requireContext(), "Ride not found", Toast.LENGTH_SHORT).show()
-            navigateToHome()
+            navigateToMainActivityHome()
         }
     }
 
@@ -238,12 +238,53 @@ class RideProcessingFragment : Fragment() {
             "DRIVER_ASSIGNED" -> showDriverAssignedState()
             "ACCEPTED" -> showAcceptedState()
             "STARTED" -> navigateToTracking()
-            "COMPLETED" -> finishRide("✅ Ride Completed!", R.color.green)
-            "REJECTED" -> showRideRejected()
-            "CANCELLED" -> showCancelledState()
-            "EXPIRED" -> showExpiredState()
+            "COMPLETED", "REJECTED", "CANCELLED", "EXPIRED" -> {
+                // ✅ All these statuses navigate to MainActivity2 Home
+                showFinalState(status)
+            }
             else -> showSearchingState()
         }
+    }
+
+    private fun showFinalState(status: String) {
+        isRideFinished = true
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+        btnCancel.visibility = View.GONE
+        btnConfirmRide.visibility = View.GONE
+        cardPayment.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+        btnCallDriver.visibility = View.GONE
+
+        when (status) {
+            "COMPLETED" -> {
+                tvStatus.text = "✅ Ride Completed!"
+                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+                Toast.makeText(requireContext(), "✅ Ride Completed!", Toast.LENGTH_SHORT).show()
+            }
+            "REJECTED" -> {
+                tvStatus.text = "❌ Driver Rejected the Ride"
+                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+                Toast.makeText(requireContext(), "Driver rejected the ride. Please try again.", Toast.LENGTH_LONG).show()
+            }
+            "CANCELLED" -> {
+                tvStatus.text = "❌ Ride Cancelled"
+                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+                Toast.makeText(requireContext(), "❌ Ride Cancelled", Toast.LENGTH_SHORT).show()
+            }
+            "EXPIRED" -> {
+                tvStatus.text = "⏰ Time Expired!"
+                tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+                Toast.makeText(requireContext(), "Time expired! Please book a new ride.", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        // ✅ Navigate to MainActivity2 Home after delay
+        handler.postDelayed({
+            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+            (requireActivity() as? MainActivity2)?.onRideStatusChanged(status)
+            navigateToMainActivityHome()
+        }, 1500)
     }
 
     private fun showSearchingState() {
@@ -317,7 +358,9 @@ class RideProcessingFragment : Fragment() {
             override fun onFinish() {
                 if (!isFragmentAttached || isRideFinished) return
                 viewModel.updateRideStatus(rideId!!, "EXPIRED") { success ->
-                    if (success) showExpiredState()
+                    if (success) {
+                        showFinalState("EXPIRED")
+                    }
                 }
             }
         }.start()
@@ -391,113 +434,16 @@ class RideProcessingFragment : Fragment() {
                 Toast.makeText(requireContext(), "❌ Ride Cancelled", Toast.LENGTH_SHORT).show()
 
                 handler.postDelayed({
-                    Log.d(TAG, "🏠 Navigating to MainActivity2 Home...")
-                    try {
-                        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-                        (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
-
-                        val bookRideFragment = BookRideFragment()
-                        requireActivity().supportFragmentManager
-                            .beginTransaction()
-                            .replace(R.id.fragment_container, bookRideFragment, "HOME")
-                            .commitAllowingStateLoss()
-                        Log.d(TAG, "🏠 Fragment replaced successfully")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "❌ Navigation error: ${e.message}")
-                        try {
-                            findNavController().popBackStack()
-                        } catch (e2: Exception) {
-                            requireActivity().finish()
-                        }
-                    }
+                    Log.d(TAG, "🏠 Navigating to MainActivity2...")
+                    (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+                    (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
+                    navigateToMainActivityHome()
                 }, 500)
             } else {
                 btnCancel.isEnabled = true
                 Toast.makeText(requireContext(), "❌ Failed to cancel ride", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    private fun showRideRejected() {
-        countDownTimer?.cancel()
-        progressBar.visibility = View.GONE
-        tvStatus.text = "❌ Driver Rejected the Ride"
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-        btnCancel.visibility = View.GONE
-        btnConfirmRide.visibility = View.GONE
-        cardPayment.visibility = View.GONE
-        tvTimer.visibility = View.GONE
-        btnCallDriver.visibility = View.GONE
-
-        Toast.makeText(requireContext(), "Driver rejected the ride. Please try again.", Toast.LENGTH_LONG).show()
-        handler.postDelayed({ navigateToHome() }, 2000)
-    }
-
-    private fun showCancelledState() {
-        if (isRideFinished) return
-        isRideFinished = true
-
-        countDownTimer?.cancel()
-        progressBar.visibility = View.GONE
-        btnCancel.visibility = View.GONE
-        btnConfirmRide.visibility = View.GONE
-        cardPayment.visibility = View.GONE
-        tvTimer.visibility = View.GONE
-        btnCallDriver.visibility = View.GONE
-
-        tvStatus.text = "❌ Ride Cancelled"
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-
-        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-        (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
-
-        Toast.makeText(requireContext(), "Ride Cancelled", Toast.LENGTH_SHORT).show()
-        navigateToHome()
-    }
-
-    private fun showExpiredState() {
-        if (isRideFinished) return
-        isRideFinished = true
-
-        countDownTimer?.cancel()
-        progressBar.visibility = View.GONE
-        btnCancel.visibility = View.GONE
-        btnConfirmRide.visibility = View.GONE
-        cardPayment.visibility = View.GONE
-        tvTimer.visibility = View.GONE
-        btnCallDriver.visibility = View.GONE
-
-        tvStatus.text = "⏰ Time Expired!"
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-
-        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-        (requireActivity() as? MainActivity2)?.onRideStatusChanged("EXPIRED")
-
-        Toast.makeText(requireContext(), "Time expired! Please book a new ride.", Toast.LENGTH_LONG).show()
-        navigateToHome()
-    }
-
-    private fun finishRide(message: String, colorRes: Int) {
-        if (isRideFinished) return
-
-        countDownTimer?.cancel()
-        progressBar.visibility = View.GONE
-        btnCancel.isEnabled = false
-        btnCancel.visibility = View.GONE
-        btnConfirmRide.visibility = View.GONE
-        cardPayment.visibility = View.GONE
-        tvTimer.visibility = View.GONE
-        btnCallDriver.visibility = View.GONE
-
-        tvStatus.text = message
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
-
-        (requireActivity() as? MainActivity2)?.onRideStatusChanged("COMPLETED")
-
-        handler.postDelayed({
-            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-            navigateToHistory()
-        }, 1500)
     }
 
     private fun navigateToTracking() {
@@ -521,40 +467,25 @@ class RideProcessingFragment : Fragment() {
                     .commit()
             } catch (e2: Exception) {
                 Toast.makeText(requireContext(), "Error opening tracking", Toast.LENGTH_SHORT).show()
-                navigateToHome()
+                navigateToMainActivityHome()
             }
         } finally {
             handler.postDelayed({ isNavigating = false }, 500)
         }
     }
 
-    private fun navigateToHome() {
+    private fun navigateToMainActivityHome() {
         if (isNavigating || !isFragmentAttached || !isAdded) return
         isNavigating = true
         try {
-            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-            (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
-            val bookRideFragment = BookRideFragment()
-            requireActivity().supportFragmentManager
-                .beginTransaction()
-                .replace(R.id.fragment_container, bookRideFragment, "HOME")
-                .commitAllowingStateLoss()
+            val intent = Intent(requireContext(), MainActivity2::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            requireActivity().finish()
+            Log.d(TAG, "🏠 Navigated to MainActivity2")
         } catch (e: Exception) {
-            Log.e(TAG, "❌ navigateToHome error: ${e.message}")
-        } finally {
-            handler.postDelayed({ isNavigating = false }, 500)
-        }
-    }
-
-    private fun navigateToHistory() {
-        if (isNavigating || !isFragmentAttached || !isAdded) return
-        isNavigating = true
-        try {
-            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-            (requireActivity() as? MainActivity2)?.onRideStatusChanged("COMPLETED")
-            findNavController().navigate(R.id.historyFragment)
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ navigateToHistory error: ${e.message}")
+            Log.e(TAG, "❌ navigateToMainActivityHome error: ${e.message}")
+            requireActivity().finish()
         } finally {
             handler.postDelayed({ isNavigating = false }, 500)
         }
