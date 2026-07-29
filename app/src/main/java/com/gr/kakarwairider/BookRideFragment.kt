@@ -14,7 +14,9 @@ import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -54,6 +56,20 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     private lateinit var btnBookNow: MaterialButton
     private lateinit var vehicleRecyclerView: RecyclerView
 
+    // SERVICE TYPE
+    private var currentServiceType: String = "GOODS"
+    private lateinit var btnGoodsDelivery: MaterialButton
+    private lateinit var btnRideTravel: MaterialButton
+
+    // GOODS FIELDS
+    private lateinit var llDestinationPhone: LinearLayout
+    private lateinit var llGoodsType: LinearLayout
+    private lateinit var llGoodsConsent: LinearLayout
+    private lateinit var etDestinationPhone: TextInputEditText
+    private lateinit var etGoodsType: TextInputEditText
+    private lateinit var cbGoodsConsent: CheckBox
+    private lateinit var tvWeightLimit: TextView
+
     private lateinit var mMap: GoogleMap
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationRequest: LocationRequest
@@ -71,7 +87,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
     private lateinit var vehicleAdapter: VehicleSelectionAdapter
     private var selectedVehicle: VehicleOption? = null
-    private var areaVehicles: List<VehicleOption> = emptyList()
 
     private val viewModel: BookRideViewModel by viewModels()
     private val db = FirebaseFirestore.getInstance()
@@ -101,9 +116,9 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         setupListeners()
         checkLocationPermissionAndEnable()
 
-        // ✅ Observe Area Vehicles
+        setServiceType("GOODS")
+
         viewModel.areaVehicles.observe(viewLifecycleOwner) { vehicles ->
-            areaVehicles = vehicles
             if (vehicles.isNotEmpty()) {
                 vehicleAdapter.updateVehicles(vehicles)
                 selectedVehicle = vehicles.firstOrNull()
@@ -111,12 +126,10 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                     calculateFareWithVehicle(selectedVehicle!!)
                 }
             } else {
-                Toast.makeText(requireContext(), "No vehicles available in this area", Toast.LENGTH_SHORT).show()
                 btnBookNow.isEnabled = false
             }
         }
 
-        // ✅ Observe Ride Creation
         viewModel.rideCreated.observe(viewLifecycleOwner) { ride ->
             if (ride != null) {
                 val bundle = Bundle().apply {
@@ -165,6 +178,17 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         tvFare = view.findViewById(R.id.tvFare)
         btnBookNow = view.findViewById(R.id.btnBookNow)
         vehicleRecyclerView = view.findViewById(R.id.vehicleRecyclerView)
+
+        btnGoodsDelivery = view.findViewById(R.id.btnGoodsDelivery)
+        btnRideTravel = view.findViewById(R.id.btnRideTravel)
+
+        llDestinationPhone = view.findViewById(R.id.llDestinationPhone)
+        llGoodsType = view.findViewById(R.id.llGoodsType)
+        llGoodsConsent = view.findViewById(R.id.llGoodsConsent)
+        etDestinationPhone = view.findViewById(R.id.etDestinationPhone)
+        etGoodsType = view.findViewById(R.id.etGoodsType)
+        cbGoodsConsent = view.findViewById(R.id.cbGoodsConsent)
+        tvWeightLimit = view.findViewById(R.id.tvWeightLimit)
     }
 
     private fun setupVehicleSelection() {
@@ -186,7 +210,36 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         btnBookNow.isEnabled = true
     }
 
-    // ✅ UPDATED: No API - Direct Haversine Calculation
+    // ✅ FIXED: Missing semicolon issue resolved
+    private fun setServiceType(type: String) {
+        currentServiceType = type
+        if (type == "GOODS") {
+            btnGoodsDelivery.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.green)
+            btnGoodsDelivery.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+            btnRideTravel.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.grey)
+            btnRideTravel.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+
+            llDestinationPhone.visibility = View.VISIBLE
+            llGoodsType.visibility = View.VISIBLE
+            llGoodsConsent.visibility = View.VISIBLE
+            tvWeightLimit.visibility = View.VISIBLE
+
+            etDestination.hint = "Enter destination address"
+        } else {
+            btnRideTravel.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.blue)
+            btnRideTravel.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+            btnGoodsDelivery.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.grey)
+            btnGoodsDelivery.setTextColor(ContextCompat.getColor(requireContext(), R.color.white))
+
+            llDestinationPhone.visibility = View.GONE
+            llGoodsType.visibility = View.GONE
+            llGoodsConsent.visibility = View.GONE
+            tvWeightLimit.visibility = View.GONE
+
+            etDestination.hint = "Enter destination"
+        }
+    }
+
     private fun calculateDistanceAndFare() {
         if (pickupLatLng == null || destinationLatLng == null) {
             Toast.makeText(requireContext(), "Please select both locations", Toast.LENGTH_SHORT).show()
@@ -198,7 +251,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         tvFare.text = "💰 Calculating fare..."
         btnBookNow.isEnabled = false
 
-        // ✅ Haversine Formula - No API!
         val distance = DistanceUtils.calculateDistance(
             pickupLatLng!!.latitude,
             pickupLatLng!!.longitude,
@@ -207,18 +259,13 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         )
 
         distanceValue = distance
-
-        // ✅ Estimate duration (Average speed: 30 km/h = 0.5 km/min)
-        val estimatedDuration = (distance / 0.5).toInt()
-        durationValue = estimatedDuration
+        durationValue = (distance / 0.5).toInt()
 
         tvDistance.text = "📍 Distance: %.1f km".format(distance)
-        tvDuration.text = "⏱️ Time: %d min".format(estimatedDuration)
+        tvDuration.text = "⏱️ Time: %d min".format(durationValue)
 
-        // ✅ Draw route on map
         drawRoute()
 
-        // ✅ Fetch vehicles for this area
         viewModel.fetchVehiclesForArea(
             pickupLatLng!!.latitude,
             pickupLatLng!!.longitude
@@ -239,7 +286,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
             .geodesic(true)
         mMap.addPolyline(polylineOptions)
 
-        // ✅ Center map on both points
         val builder = LatLngBounds.Builder()
         builder.include(pickupLatLng!!)
         builder.include(destinationLatLng!!)
@@ -268,6 +314,9 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
             showLocationOptions()
         }
 
+        btnGoodsDelivery.setOnClickListener { setServiceType("GOODS") }
+        btnRideTravel.setOnClickListener { setServiceType("RIDE") }
+
         btnBookNow.setOnClickListener {
             val pickup = etPickup.text.toString()
             val destination = etDestination.text.toString()
@@ -276,6 +325,25 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                 if (selectedVehicle == null) {
                     Toast.makeText(requireContext(), "Please select a vehicle", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
+                }
+
+                if (currentServiceType == "GOODS") {
+                    val destPhone = etDestinationPhone.text.toString().trim()
+                    val goodsType = etGoodsType.text.toString().trim()
+                    val consent = cbGoodsConsent.isChecked
+
+                    if (destPhone.length != 10) {
+                        Toast.makeText(requireContext(), "Please enter 10-digit destination phone", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    if (goodsType.isEmpty()) {
+                        Toast.makeText(requireContext(), "Please enter goods type/name", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    if (!consent) {
+                        Toast.makeText(requireContext(), "Please confirm goods are not illegal/hazardous", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
                 }
 
                 checkActiveRide {
@@ -294,7 +362,11 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                         duration = durationValue,
                         basePrice = vehicle.basePrice,
                         perKmRate = vehicle.perKmRate,
-                        totalFare = fareValue
+                        totalFare = fareValue,
+                        serviceType = currentServiceType,
+                        destinationPhone = if (currentServiceType == "GOODS") etDestinationPhone.text.toString().trim() else "",
+                        goodsType = if (currentServiceType == "GOODS") etGoodsType.text.toString().trim() else "",
+                        goodsConsent = if (currentServiceType == "GOODS") cbGoodsConsent.isChecked else false
                     )
                 }
             } else {
@@ -319,12 +391,10 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                     callback()
                 } else {
                     Toast.makeText(requireContext(),
-                        "⚠️ You already have an active ride!\nPlease complete it first.",
+                        "⚠️ You already have an active ride! Please complete it first.",
                         Toast.LENGTH_LONG).show()
                     val rideId = documents.first().id
-                    val bundle = Bundle().apply {
-                        putString("rideId", rideId)
-                    }
+                    val bundle = Bundle().apply { putString("rideId", rideId) }
                     val fragment = RideProcessingFragment()
                     fragment.arguments = bundle
                     requireActivity().supportFragmentManager
@@ -340,7 +410,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     }
 
     // ============================================================
-    // LOCATION FUNCTIONS (Unchanged - Keep as is)
+    // LOCATION FUNCTIONS
     // ============================================================
 
     private fun checkLocationPermissionAndEnable() {
@@ -537,7 +607,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         }
 
         if (pickupLatLng != null && destinationLatLng != null) {
-            // ✅ Calculate distance without API
             calculateDistanceAndFare()
         }
     }
@@ -558,10 +627,8 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
     private fun openSearchPlace() {
         val intent = Intent(requireContext(), SearchPlaceActivity::class.java)
-
         val locationToSend = currentLocation ?: LatLng(28.6139, 77.2090)
         intent.putExtra("current_location", locationToSend)
-
         startActivityForResult(intent, 100)
     }
 

@@ -28,16 +28,11 @@ class BookRideViewModel : ViewModel() {
     private val _errorMessage = MutableLiveData<String?>(null)
     val errorMessage: LiveData<String?> = _errorMessage
 
-    // ✅ LiveData for Area Vehicles
     private val _areaVehicles = MutableLiveData<List<VehicleOption>>(emptyList())
     val areaVehicles: LiveData<List<VehicleOption>> = _areaVehicles
 
     private var currentAreaId: String? = null
     private var currentAreaAdminId: String? = null
-
-    // ============================================================
-    // ✅ FETCH VEHICLES FROM AREA
-    // ============================================================
 
     fun fetchVehiclesForArea(pickupLat: Double, pickupLng: Double) {
         _isLoading.value = true
@@ -52,7 +47,6 @@ class BookRideViewModel : ViewModel() {
             currentAreaId = areaId
             currentAreaAdminId = adminId
 
-            // ✅ Convert Map to List of VehicleOption
             val vehicles = mutableListOf<VehicleOption>()
             vehicleRates.forEach { (key, value) ->
                 val data = value as? Map<*, *>
@@ -81,10 +75,6 @@ class BookRideViewModel : ViewModel() {
             Log.d(TAG, "✅ Loaded ${vehicles.size} vehicles from area")
         }
     }
-
-    // ============================================================
-    // ✅ FIND NEAREST AREA
-    // ============================================================
 
     private fun findNearestArea(
         userLat: Double,
@@ -139,10 +129,6 @@ class BookRideViewModel : ViewModel() {
             }
     }
 
-    // ============================================================
-    // ✅ BOOK RIDE (UPDATED - No API)
-    // ============================================================
-
     fun bookRide(
         pickupAddress: String,
         pickupLat: Double,
@@ -157,10 +143,14 @@ class BookRideViewModel : ViewModel() {
         duration: Int,
         basePrice: Double,
         perKmRate: Double,
-        totalFare: Double
+        totalFare: Double,
+        serviceType: String = "GOODS",
+        destinationPhone: String = "",
+        goodsType: String = "",
+        goodsConsent: Boolean = false
     ) {
         Log.d(TAG, "========== BOOK RIDE STARTED ==========")
-        Log.d(TAG, "Vehicle: $vehicleName ($vehicleType)")
+        Log.d(TAG, "Service: $serviceType, Vehicle: $vehicleName")
 
         _isLoading.value = true
 
@@ -184,12 +174,8 @@ class BookRideViewModel : ViewModel() {
             rideId = db.collection("rides").document().id,
             userId = currentUser.uid,
             userPhone = currentUser.phoneNumber ?: "",
-            pickupAddress = pickupAddress,
-            pickupLat = pickupLat,
-            pickupLng = pickupLng,
-            destinationAddress = destinationAddress,
-            destinationLat = destinationLat,
-            destinationLng = destinationLng,
+            pickup = LocationData(pickupAddress, pickupLat, pickupLng),
+            destination = LocationData(destinationAddress, destinationLat, destinationLng),
             vehicleType = vehicleType,
             vehicleIcon = vehicleIcon,
             vehicleName = vehicleName,
@@ -199,24 +185,20 @@ class BookRideViewModel : ViewModel() {
             perKmRate = perKmRate,
             totalFare = totalFare,
             areaId = areaId,
-            adminId = adminId
+            adminId = adminId,
+            serviceType = serviceType,
+            destinationPhone = destinationPhone,
+            goodsType = goodsType,
+            goodsConsent = goodsConsent
         )
     }
-
-    // ============================================================
-    // ✅ CREATE RIDE IN FIRESTORE
-    // ============================================================
 
     private fun createRide(
         rideId: String,
         userId: String,
         userPhone: String,
-        pickupAddress: String,
-        pickupLat: Double,
-        pickupLng: Double,
-        destinationAddress: String,
-        destinationLat: Double,
-        destinationLng: Double,
+        pickup: LocationData,
+        destination: LocationData,
         vehicleType: String,
         vehicleIcon: String,
         vehicleName: String,
@@ -226,7 +208,11 @@ class BookRideViewModel : ViewModel() {
         perKmRate: Double,
         totalFare: Double,
         areaId: String,
-        adminId: String?
+        adminId: String?,
+        serviceType: String = "GOODS",
+        destinationPhone: String = "",
+        goodsType: String = "",
+        goodsConsent: Boolean = false
     ) {
         Log.d(TAG, "Creating ride...")
 
@@ -238,16 +224,20 @@ class BookRideViewModel : ViewModel() {
             "userId" to userId,
             "userPhone" to userPhone,
             "userName" to "",
+            "serviceType" to serviceType,
             "pickup" to hashMapOf(
-                "address" to pickupAddress,
-                "lat" to pickupLat,
-                "lng" to pickupLng
+                "address" to pickup.address,
+                "lat" to pickup.lat,
+                "lng" to pickup.lng
             ),
             "destination" to hashMapOf(
-                "address" to destinationAddress,
-                "lat" to destinationLat,
-                "lng" to destinationLng
+                "address" to destination.address,
+                "lat" to destination.lat,
+                "lng" to destination.lng
             ),
+            "destinationPhone" to destinationPhone,
+            "goodsType" to goodsType,
+            "goodsConsent" to goodsConsent,
             "vehicleType" to vehicleType,
             "vehicleIcon" to vehicleIcon,
             "vehicleName" to vehicleName,
@@ -284,8 +274,12 @@ class BookRideViewModel : ViewModel() {
                     userId = userId,
                     userPhone = userPhone,
                     userName = "",
-                    pickup = LocationData(pickupAddress, pickupLat, pickupLng),
-                    destination = LocationData(destinationAddress, destinationLat, destinationLng),
+                    serviceType = serviceType,
+                    pickup = pickup,
+                    destination = destination,
+                    destinationPhone = destinationPhone,
+                    goodsType = goodsType,
+                    goodsConsent = goodsConsent,
                     vehicleType = vehicleType,
                     vehicleIcon = vehicleIcon,
                     vehicleName = vehicleName,

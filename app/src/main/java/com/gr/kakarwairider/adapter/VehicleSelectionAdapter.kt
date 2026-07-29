@@ -56,7 +56,6 @@ class VehicleSelectionAdapter(
         private val tvIcon: TextView = itemView.findViewById(R.id.tvVehicleIcon)
         private val tvName: TextView = itemView.findViewById(R.id.tvVehicleName)
         private val tvPrice: TextView = itemView.findViewById(R.id.tvVehiclePrice)
-       // private val tvPerKm: TextView = itemView.findViewById(R.id.tvVehiclePerKm)
         private val cardView: CardView = itemView.findViewById(R.id.cardVehicle)
         private val viewSelected: View = itemView.findViewById(R.id.viewSelected)
 
@@ -64,7 +63,6 @@ class VehicleSelectionAdapter(
             tvIcon.text = vehicle.icon
             tvName.text = vehicle.name
             tvPrice.text = "₹${vehicle.basePrice.toInt()} + ₹${vehicle.perKmRate.toInt()}/km"
-           // tvPerKm.text = "₹${vehicle.perKmRate.toInt()}/km"
 
             if (isSelected) {
                 viewSelected.visibility = View.VISIBLE
