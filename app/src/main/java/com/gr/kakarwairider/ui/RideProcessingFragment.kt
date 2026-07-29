@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ProgressBar
+import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -28,7 +29,7 @@ class RideProcessingFragment : Fragment() {
     private val viewModel: RideProcessingViewModel by viewModels()
     private val handler = Handler(Looper.getMainLooper())
 
-    // ✅ Views
+    // Views
     private lateinit var tvTimer: TextView
     private lateinit var tvRideId: TextView
     private lateinit var tvStatus: TextView
@@ -41,12 +42,15 @@ class RideProcessingFragment : Fragment() {
     private lateinit var progressBar: ProgressBar
     private lateinit var cardRideDetails: MaterialCardView
     private lateinit var cardDriverDetails: MaterialCardView
+    private lateinit var cardPayment: MaterialCardView
     private lateinit var btnRefresh: MaterialButton
     private lateinit var btnCancel: MaterialButton
-    private lateinit var btnStartRide: MaterialButton
+    private lateinit var btnConfirmRide: MaterialButton
     private lateinit var tvDriverName: TextView
     private lateinit var tvDriverPhone: TextView
     private lateinit var tvDriverVehicle: TextView
+    private lateinit var rbCash: RadioButton
+    private lateinit var rbOnline: RadioButton
 
     private var rideId: String? = null
     private var countDownTimer: CountDownTimer? = null
@@ -70,19 +74,17 @@ class RideProcessingFragment : Fragment() {
         initViews(view)
         setupCallbacks()
         setupObservers()
+        setupListeners()
 
         rideId = arguments?.getString("rideId")
 
         if (rideId != null) {
             viewModel.loadRideDetails(rideId!!)
             viewModel.listenForRideUpdates(rideId!!)
-            startTimer()
         } else {
             Toast.makeText(requireContext(), "Ride not found", Toast.LENGTH_SHORT).show()
             goToHome()
         }
-
-        setupListeners()
     }
 
     private fun initViews(view: View) {
@@ -98,12 +100,15 @@ class RideProcessingFragment : Fragment() {
         progressBar = view.findViewById(R.id.progressBar)
         cardRideDetails = view.findViewById(R.id.cardRideDetails)
         cardDriverDetails = view.findViewById(R.id.cardDriverDetails)
+        cardPayment = view.findViewById(R.id.cardPayment)
         btnRefresh = view.findViewById(R.id.btnRefresh)
         btnCancel = view.findViewById(R.id.btnCancel)
-        btnStartRide = view.findViewById(R.id.btnStartRide)
+        btnConfirmRide = view.findViewById(R.id.btnConfirmRide)
         tvDriverName = view.findViewById(R.id.tvDriverName)
         tvDriverPhone = view.findViewById(R.id.tvDriverPhone)
         tvDriverVehicle = view.findViewById(R.id.tvDriverVehicle)
+        rbCash = view.findViewById(R.id.rbCash)
+        rbOnline = view.findViewById(R.id.rbOnline)
     }
 
     private fun setupCallbacks() {
@@ -120,17 +125,14 @@ class RideProcessingFragment : Fragment() {
     }
 
     private fun setupObservers() {
-        // ✅ Ride Data Observer
         viewModel.rideData.observe(viewLifecycleOwner, Observer { data ->
             data?.let { updateUI(it) }
         })
 
-        // ✅ Status Observer
         viewModel.status.observe(viewLifecycleOwner, Observer { status ->
             handleStatusUpdate(status)
         })
 
-        // ✅ Driver Details Observer
         viewModel.driverDetails.observe(viewLifecycleOwner, Observer { driver ->
             driver?.let {
                 cardDriverDetails.visibility = View.VISIBLE
@@ -140,12 +142,10 @@ class RideProcessingFragment : Fragment() {
             }
         })
 
-        // ✅ Loading Observer
         viewModel.isLoading.observe(viewLifecycleOwner, Observer { loading ->
             progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         })
 
-        // ✅ Error Observer
         viewModel.errorMessage.observe(viewLifecycleOwner, Observer { error ->
             error?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
@@ -179,7 +179,7 @@ class RideProcessingFragment : Fragment() {
         when (status) {
             "PENDING", "SEARCHING" -> showSearchingState()
             "DRIVER_ASSIGNED" -> showDriverAssignedState()
-            "ACCEPTED" -> onDriverAccepted()
+            "ACCEPTED" -> showAcceptedState()
             "STARTED" -> navigateToTracking()
             "COMPLETED" -> finishRide("✅ Ride Completed!", R.color.green)
             "REJECTED" -> showRideRejected()
@@ -193,45 +193,195 @@ class RideProcessingFragment : Fragment() {
         tvStatus.text = "⏳ Searching for a driver..."
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
         progressBar.visibility = View.VISIBLE
-        //btnCancel.visibility = View.VISIBLE
-        btnStartRide.visibility = View.GONE
+        tvTimer.visibility = View.GONE
         cardDriverDetails.visibility = View.GONE
-        tvTimer.visibility = View.VISIBLE
+        cardPayment.visibility = View.GONE
+        btnConfirmRide.visibility = View.GONE
+        btnCancel.visibility = View.GONE
+        btnRefresh.visibility = View.GONE
+        btnConfirmRide.isEnabled = false
     }
 
     private fun showDriverAssignedState() {
         progressBar.visibility = View.VISIBLE
         tvStatus.text = "⏳ Waiting for Driver Approval..."
         tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
-        btnCancel.visibility = View.VISIBLE
-        btnStartRide.visibility = View.GONE
-        tvTimer.visibility = View.VISIBLE
-        showToast("⏳ Waiting for driver to accept")
+        tvTimer.visibility = View.GONE
+        cardPayment.visibility = View.GONE
+        btnConfirmRide.visibility = View.GONE
+        btnCancel.visibility = View.GONE
+        btnRefresh.visibility = View.VISIBLE
+        btnConfirmRide.isEnabled = false
+        Toast.makeText(requireContext(), "⏳ Waiting for driver to accept", Toast.LENGTH_SHORT).show()
     }
 
-    private fun onDriverAccepted() {
+    private fun showAcceptedState() {
+        progressBar.visibility = View.GONE
+        tvStatus.text = "✅ Driver Accepted! Confirm payment to start ride."
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+
+        tvTimer.visibility = View.VISIBLE
+        cardPayment.visibility = View.VISIBLE
+        btnConfirmRide.visibility = View.VISIBLE
+        btnCancel.visibility = View.VISIBLE
+        btnRefresh.visibility = View.GONE
+
+        if (countDownTimer == null) {
+            startTimer()
+        }
+
+        rbCash.isChecked = true
+        btnConfirmRide.isEnabled = true
+        btnConfirmRide.text = "✅ Confirm & Start Ride"
+
+        Toast.makeText(requireContext(), "✅ Driver accepted! Please confirm payment.", Toast.LENGTH_LONG).show()
+    }
+
+    private fun startTimer() {
+        val duration = 5 * 60 * 1000L
+        countDownTimer = object : CountDownTimer(duration, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val minutes = millisUntilFinished / 60000
+                val seconds = (millisUntilFinished % 60000) / 1000
+                tvTimer.text = "⏳ ${minutes}m ${seconds}s remaining"
+            }
+
+            override fun onFinish() {
+                if (!isFragmentAttached || isRideFinished) return
+                viewModel.updateRideStatus(rideId!!, "EXPIRED") { success ->
+                    if (success) showExpiredState()
+                }
+            }
+        }.start()
+    }
+
+    private fun setupListeners() {
+        btnRefresh.setOnClickListener {
+            rideId?.let { viewModel.loadRideDetails(it) }
+            Toast.makeText(requireContext(), "Status refreshed", Toast.LENGTH_SHORT).show()
+        }
+
+        btnCancel.setOnClickListener {
+            cancelRide()
+        }
+
+        btnConfirmRide.setOnClickListener {
+            if (rbCash.isChecked) {
+                btnConfirmRide.isEnabled = false
+                btnConfirmRide.text = "⏳ Confirming..."
+
+                viewModel.updateRideWithPayment(rideId!!, "CASH") { success ->
+                    if (success) {
+                        Toast.makeText(requireContext(), "✅ Payment confirmed! Starting ride...", Toast.LENGTH_SHORT).show()
+                        viewModel.updateRideStatus(rideId!!, "STARTED") { updateSuccess ->
+                            if (updateSuccess) {
+                                countDownTimer?.cancel()
+                                navigateToTracking()
+                            } else {
+                                btnConfirmRide.isEnabled = true
+                                btnConfirmRide.text = "✅ Confirm & Start Ride"
+                                Toast.makeText(requireContext(), "❌ Failed to start ride", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    } else {
+                        btnConfirmRide.isEnabled = true
+                        btnConfirmRide.text = "✅ Confirm & Start Ride"
+                        Toast.makeText(requireContext(), "❌ Failed to confirm payment", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } else {
+                Toast.makeText(requireContext(), "Please select Cash payment method", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun cancelRide() {
+        if (isRideFinished || !isAdded) return
+
+        viewModel.cancelRide { success ->
+            if (success) {
+                countDownTimer?.cancel()
+                showCancelledState()
+            }
+        }
+    }
+
+    private fun showRideRejected() {
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+        tvStatus.text = "❌ Driver Rejected the Ride"
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+        btnCancel.visibility = View.GONE
+        btnConfirmRide.visibility = View.GONE
+        cardPayment.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+
+        Toast.makeText(requireContext(), "Driver rejected the ride. Please try again.", Toast.LENGTH_LONG).show()
+        handler.postDelayed({ goToHome() }, 2000)
+    }
+
+    private fun showCancelledState() {
+        if (isRideFinished) return
+        isRideFinished = true
+
         countDownTimer?.cancel()
         progressBar.visibility = View.GONE
         btnCancel.visibility = View.GONE
-        btnStartRide.visibility = View.GONE
+        btnConfirmRide.visibility = View.GONE
+        cardPayment.visibility = View.GONE
         tvTimer.visibility = View.GONE
 
-        tvStatus.text = "✅ Driver Accepted! Ride Starting..."
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+        tvStatus.text = "❌ Ride Cancelled"
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
 
-        showToast("🚗 Driver accepted! Ride is starting...")
+        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+        (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
 
-        rideId?.let { id ->
-            viewModel.updateRideStatus("STARTED") { success ->
-                if (success) {
-                    handler.postDelayed({
-                        if (isFragmentAttached && isAdded && !isRideFinished) {
-                            navigateToTracking()
-                        }
-                    }, 800)
-                }
-            }
-        }
+        Toast.makeText(requireContext(), "Ride Cancelled", Toast.LENGTH_SHORT).show()
+        goToHome()
+    }
+
+    private fun showExpiredState() {
+        if (isRideFinished) return
+        isRideFinished = true
+
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+        btnCancel.visibility = View.GONE
+        btnConfirmRide.visibility = View.GONE
+        cardPayment.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+
+        tvStatus.text = "⏰ Time Expired!"
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
+
+        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+        (requireActivity() as? MainActivity2)?.onRideStatusChanged("EXPIRED")
+
+        Toast.makeText(requireContext(), "Time expired! Please book a new ride.", Toast.LENGTH_LONG).show()
+        goToHome()
+    }
+
+    private fun finishRide(message: String, colorRes: Int) {
+        if (isRideFinished) return
+
+        countDownTimer?.cancel()
+        progressBar.visibility = View.GONE
+        btnCancel.isEnabled = false
+        btnCancel.visibility = View.GONE
+        btnConfirmRide.visibility = View.GONE
+        cardPayment.visibility = View.GONE
+        tvTimer.visibility = View.GONE
+
+        tvStatus.text = message
+        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
+
+        (requireActivity() as? MainActivity2)?.onRideStatusChanged("COMPLETED")
+
+        handler.postDelayed({
+            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
+            goToHistory()
+        }, 1500)
     }
 
     private fun navigateToTracking() {
@@ -246,103 +396,19 @@ class RideProcessingFragment : Fragment() {
             findNavController().navigate(R.id.action_processing_to_tracking, bundle)
         } catch (e: Exception) {
             try {
-                findNavController().navigate(R.id.rideTrackingFragment, bundle)
+                val fragment = RideTrackingFragment()
+                fragment.arguments = bundle
+                requireActivity().supportFragmentManager
+                    .beginTransaction()
+                    .replace(R.id.fragment_container, fragment)
+                    .addToBackStack(null)
+                    .commit()
             } catch (e2: Exception) {
-                try {
-                    val fragment = RideTrackingFragment()
-                    fragment.arguments = bundle
-                    requireActivity().supportFragmentManager
-                        .beginTransaction()
-                        .replace(R.id.fragment_container, fragment)
-                        .addToBackStack(null)
-                        .commit()
-                } catch (e3: Exception) {
-                    Toast.makeText(requireContext(), "Error opening tracking", Toast.LENGTH_SHORT).show()
-                    goToHome()
-                }
+                Toast.makeText(requireContext(), "Error opening tracking", Toast.LENGTH_SHORT).show()
+                goToHome()
             }
         } finally {
             handler.postDelayed({ isNavigating = false }, 500)
-        }
-    }
-
-    private fun showRideRejected() {
-        countDownTimer?.cancel()
-        progressBar.visibility = View.GONE
-        tvStatus.text = "❌ Driver Rejected the Ride"
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-        btnCancel.visibility = View.GONE
-        btnStartRide.visibility = View.GONE
-        tvTimer.visibility = View.GONE
-
-        showToast("Driver rejected the ride. Please try again.")
-        handler.postDelayed({ goToHome() }, 2000)
-    }
-
-    private fun showCancelledState() {
-        if (isRideFinished) return
-        isRideFinished = true
-
-        countDownTimer?.cancel()
-        progressBar.visibility = View.GONE
-        btnCancel.visibility = View.GONE
-        btnStartRide.visibility = View.GONE
-        tvTimer.visibility = View.GONE
-
-        tvStatus.text = "❌ Ride Cancelled"
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-
-        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-        (requireActivity() as? MainActivity2)?.onRideStatusChanged("CANCELLED")
-
-        showToast("Ride Cancelled")
-        goToHome()
-    }
-
-    private fun showExpiredState() {
-        if (isRideFinished) return
-        isRideFinished = true
-
-        countDownTimer?.cancel()
-        progressBar.visibility = View.GONE
-        btnCancel.visibility = View.GONE
-        btnStartRide.visibility = View.GONE
-        tvTimer.visibility = View.GONE
-
-        tvStatus.text = "⏰ Time Expired!"
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-
-        (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-        (requireActivity() as? MainActivity2)?.onRideStatusChanged("EXPIRED")
-
-        showToast("Time expired! Please book a new ride.")
-        goToHome()
-    }
-
-    private fun finishRide(message: String, colorRes: Int) {
-        if (isRideFinished) return
-
-        countDownTimer?.cancel()
-        progressBar.visibility = View.GONE
-        btnCancel.isEnabled = false
-        btnCancel.visibility = View.GONE
-        btnStartRide.visibility = View.GONE
-        tvTimer.visibility = View.GONE
-
-        tvStatus.text = message
-        tvStatus.setTextColor(ContextCompat.getColor(requireContext(), colorRes))
-
-        (requireActivity() as? MainActivity2)?.onRideStatusChanged("COMPLETED")
-
-        handler.postDelayed({
-            (requireActivity() as? MainActivity2)?.hideBottomNav(false)
-            goToHistory()
-        }, 1500)
-    }
-
-    private fun showToast(message: String) {
-        if (isAdded && isFragmentAttached) {
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -374,71 +440,15 @@ class RideProcessingFragment : Fragment() {
         }
     }
 
-    // ============================================================
-    // ✅ TIMER
-    // ============================================================
-
-    private fun startTimer() {
-        val expireTime = System.currentTimeMillis() + 300000
-        val timeLeft = expireTime - System.currentTimeMillis()
-
-        if (timeLeft <= 0) {
-            tvTimer.text = "⏰ Time Expired!"
-            return
-        }
-
-        countDownTimer = object : CountDownTimer(timeLeft, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                if (!isFragmentAttached) {
-                    cancel()
-                    return
-                }
-                val minutes = millisUntilFinished / 60000
-                val seconds = (millisUntilFinished % 60000) / 1000
-                tvTimer.text = "⏳ ${minutes}m ${seconds}s remaining"
-            }
-
-            override fun onFinish() {
-                if (!isFragmentAttached || isRideFinished) return
-                viewModel.updateRideStatus("EXPIRED") { success ->
-                    if (success) showExpiredState()
-                }
-            }
-        }.start()
-    }
-
-    // ============================================================
-    // ✅ BUTTON LISTENERS
-    // ============================================================
-
-    private fun setupListeners() {
-        btnRefresh.setOnClickListener {
-            rideId?.let { viewModel.loadRideDetails(it) }
-            showToast("Status refreshed")
-        }
-
-       // btnCancel.setOnClickListener {
-         //   cancelRide()
-       // }
-    }
-
-    private fun cancelRide() {
-        if (isRideFinished || !isAdded) return
-
-        viewModel.cancelRide { success ->
-            if (success) {
-                countDownTimer?.cancel()
-                showCancelledState()
-            }
-        }
-    }
-
-    // ============================================================
-    // ✅ LIFECYCLE
-    // ============================================================
-
     override fun onDestroyView() {
         super.onDestroyView()
+        isFragmentAttached = false
+        countDownTimer?.cancel()
+        handler.removeCallbacksAndMessages(null)
+    }
+
+    override fun onDetach() {
+        super.onDetach()
         isFragmentAttached = false
         countDownTimer?.cancel()
         handler.removeCallbacksAndMessages(null)

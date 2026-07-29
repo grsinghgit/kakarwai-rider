@@ -4,175 +4,187 @@ import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
 import com.gr.kakarwairider.model.RideModel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 
 class RideProcessingViewModel : ViewModel() {
 
+    private val TAG = "RideProcessingVM"
     private val db = FirebaseFirestore.getInstance()
 
-    // ✅ LiveData
-    private val _rideData = MutableLiveData<Map<String, Any>?>()
+    private val _rideData = MutableLiveData<Map<String, Any>?>(null)
     val rideData: LiveData<Map<String, Any>?> = _rideData
-
-    private val _rideModel = MutableLiveData<RideModel?>()
-    val rideModel: LiveData<RideModel?> = _rideModel
 
     private val _status = MutableLiveData<String>("PENDING")
     val status: LiveData<String> = _status
 
-    private val _isLoading = MutableLiveData(true)
+    private val _driverDetails = MutableLiveData<DriverDetail?>(null)
+    val driverDetails: LiveData<DriverDetail?> = _driverDetails
+
+    private val _isLoading = MutableLiveData(false)
     val isLoading: LiveData<Boolean> = _isLoading
 
-    private val _errorMessage = MutableLiveData<String?>()
+    private val _errorMessage = MutableLiveData<String?>(null)
     val errorMessage: LiveData<String?> = _errorMessage
 
-    private val _driverDetails = MutableLiveData<DriverDetails?>()
-    val driverDetails: LiveData<DriverDetails?> = _driverDetails
-
     private var listener: com.google.firebase.firestore.ListenerRegistration? = null
-    private var currentRideId: String? = null
+    private var driverListener: com.google.firebase.firestore.ListenerRegistration? = null
 
-    // ✅ Driver Details Data Class
-    data class DriverDetails(
+    data class DriverDetail(
         val name: String,
         val phone: String,
         val vehicle: String,
         val vehicleNumber: String
     )
 
-    // ✅ Load Ride Details
     fun loadRideDetails(rideId: String) {
-        currentRideId = rideId
         _isLoading.value = true
 
-        viewModelScope.launch {
-            try {
-                val document = db.collection("rides").document(rideId).get().await()
+        db.collection("rides").document(rideId)
+            .get()
+            .addOnSuccessListener { document ->
                 if (document.exists()) {
-                    val data = document.data ?: emptyMap()
-                    _rideData.value = data
+                    _rideData.value = document.data
+                    val status = document.getString("status") ?: "PENDING"
+                    _status.value = status
+                    _isLoading.value = false
 
-                    // ✅ Convert to RideModel
-                    val ride = document.toObject<RideModel>()
-                    _rideModel.value = ride?.copy(rideId = document.id)
-
-                    extractDriverDetails(data)
-                    updateStatus(data["status"] as? String ?: "PENDING")
+                    // ✅ Load driver details if assigned
+                    val driverId = document.getString("driverId")
+                    if (!driverId.isNullOrEmpty()) {
+                        loadDriverDetails(driverId)
+                    }
                 } else {
                     _errorMessage.value = "Ride not found"
+                    _isLoading.value = false
                 }
-                _isLoading.value = false
-            } catch (e: Exception) {
-                _errorMessage.value = "Failed to load ride: ${e.message}"
+            }
+            .addOnFailureListener {
+                _errorMessage.value = it.message
                 _isLoading.value = false
             }
-        }
     }
 
-    // ✅ Listen for Real-time Updates
-    fun listenForRideUpdates(rideId: String) {
-        currentRideId = rideId
-        listener?.remove()
+    private fun loadDriverDetails(driverId: String) {
+        driverListener?.remove()
+        driverListener = db.collection("drivers").document(driverId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Error loading driver: ${error.message}")
+                    return@addSnapshotListener
+                }
 
+                if (snapshot != null && snapshot.exists()) {
+                    val name = snapshot.getString("name") ?: "Driver"
+                    val phone = snapshot.getString("phone") ?: "N/A"
+                    val vehicleType = snapshot.getString("vehicleType") ?: "Car"
+                    val vehicleModel = snapshot.getString("vehicleModel") ?: ""
+                    val vehicleNumber = snapshot.getString("vehicleNumber") ?: "N/A"
+
+                    val vehicle = if (vehicleModel.isNotEmpty()) {
+                        "$vehicleType $vehicleModel"
+                    } else {
+                        vehicleType
+                    }
+
+                    _driverDetails.value = DriverDetail(name, phone, vehicle, vehicleNumber)
+                }
+            }
+    }
+
+    fun listenForRideUpdates(rideId: String) {
+        listener?.remove()
         listener = db.collection("rides").document(rideId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    _errorMessage.value = error.message
+                    Log.e(TAG, "Listen error: ${error.message}")
                     return@addSnapshotListener
                 }
-                if (snapshot == null || !snapshot.exists()) return@addSnapshotListener
 
-                val data = snapshot.data ?: return@addSnapshotListener
-                _rideData.value = data
+                if (snapshot != null && snapshot.exists()) {
+                    val newStatus = snapshot.getString("status") ?: "PENDING"
+                    _status.value = newStatus
+                    _rideData.value = snapshot.data
 
-                val ride = snapshot.toObject<RideModel>()
-                _rideModel.value = ride?.copy(rideId = snapshot.id)
-
-                extractDriverDetails(data)
-                updateStatus(data["status"] as? String ?: "PENDING")
+                    // ✅ Load driver details if driver assigned
+                    val driverId = snapshot.getString("driverId")
+                    if (!driverId.isNullOrEmpty()) {
+                        loadDriverDetails(driverId)
+                    }
+                }
             }
     }
 
-    // ✅ Extract Driver Details
-    private fun extractDriverDetails(data: Map<String, Any>) {
-        val driverName = data["driverName"] as? String
-        val driverPhone = data["driverPhone"] as? String
-        val driverVehicle = data["driverVehicle"] as? String
-        val driverVehicleNumber = data["driverVehicleNumber"] as? String
-
-        if (driverName != null) {
-            _driverDetails.value = DriverDetails(
-                name = driverName,
-                phone = driverPhone ?: "N/A",
-                vehicle = driverVehicle ?: "Car",
-                vehicleNumber = driverVehicleNumber ?: "N/A"
+    fun updateRideStatus(rideId: String, status: String, callback: (Boolean) -> Unit) {
+        db.collection("rides").document(rideId)
+            .update(
+                mapOf(
+                    "status" to status,
+                    "updatedAt" to Timestamp.now()
+                )
             )
-        }
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Ride updated to $status")
+                callback(true)
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Update failed: ${e.message}")
+                _errorMessage.value = e.message
+                callback(false)
+            }
     }
 
-    // ✅ Update Status
-    private fun updateStatus(newStatus: String) {
-        _status.value = newStatus
-    }
-
-    // ✅ Update Ride Status
-    fun updateRideStatus(status: String, callback: (Boolean) -> Unit) {
-        currentRideId?.let { rideId ->
-            db.collection("rides").document(rideId)
-                .update(
-                    mapOf(
-                        "status" to status,
-                        "updatedAt" to Timestamp.now()
-                    )
+    // ✅ NEW: Update payment method
+    fun updateRideWithPayment(rideId: String, paymentMethod: String, callback: (Boolean) -> Unit) {
+        db.collection("rides").document(rideId)
+            .update(
+                mapOf(
+                    "paymentMethod" to paymentMethod,
+                    "updatedAt" to Timestamp.now()
                 )
-                .addOnSuccessListener {
-                    Log.d("RideProcessingVM", "✅ Status updated: $status")
-                    callback(true)
-                }
-                .addOnFailureListener { e ->
-                    Log.e("RideProcessingVM", "❌ Update failed: ${e.message}")
-                    _errorMessage.value = "Failed to update status: ${e.message}"
-                    callback(false)
-                }
-        } ?: callback(false)
+            )
+            .addOnSuccessListener {
+                Log.d(TAG, "✅ Payment method updated: $paymentMethod")
+                callback(true)
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Payment update failed: ${e.message}")
+                callback(false)
+            }
     }
 
-    // ✅ Cancel Ride
     fun cancelRide(callback: (Boolean) -> Unit) {
-        currentRideId?.let { rideId ->
-            db.collection("rides").document(rideId)
-                .update(
-                    mapOf(
-                        "status" to "CANCELLED",
-                        "updatedAt" to Timestamp.now()
-                    )
+        val rideId = _rideData.value?.get("rideId") as? String ?: run {
+            callback(false)
+            return
+        }
+
+        db.collection("rides").document(rideId)
+            .update(
+                mapOf(
+                    "status" to "CANCELLED",
+                    "cancelledBy" to "user",
+                    "cancelReason" to "User cancelled",
+                    "updatedAt" to Timestamp.now()
                 )
-                .addOnSuccessListener {
-                    Log.d("RideProcessingVM", "✅ Ride Cancelled")
-                    callback(true)
-                }
-                .addOnFailureListener { e ->
-                    Log.e("RideProcessingVM", "❌ Cancel failed: ${e.message}")
-                    _errorMessage.value = "Failed to cancel: ${e.message}"
-                    callback(false)
-                }
-        } ?: callback(false)
+            )
+            .addOnSuccessListener {
+                callback(true)
+            }
+            .addOnFailureListener {
+                callback(false)
+            }
     }
 
-    // ✅ Clear Error
     fun clearError() {
         _errorMessage.value = null
     }
 
-    // ✅ Cleanup
     override fun onCleared() {
         super.onCleared()
         listener?.remove()
+        driverListener?.remove()
     }
 }
