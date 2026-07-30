@@ -36,7 +36,21 @@
             android:text="Login with Phone Number"
             android:textSize="16sp"
             android:textColor="@color/grey"
-            android:layout_marginBottom="32dp" />
+            android:layout_marginBottom="16dp" />
+
+        <!-- ✅ Service Status -->
+        <TextView
+            android:id="@+id/tvServiceStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📍 Checking service availability..."
+            android:textSize="14sp"
+            android:textColor="@color/orange"
+            android:gravity="center"
+            android:padding="8dp"
+            android:background="@color/grey_light"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone" />
 
         <!-- Phone Number -->
         <com.google.android.material.textfield.TextInputLayout
@@ -63,9 +77,11 @@
             android:layout_height="56dp"
             android:text="Send OTP"
             app:cornerRadius="12dp"
-            android:layout_marginBottom="12dp" />
+            android:layout_marginBottom="12dp"
+            android:enabled="false"
+            android:alpha="0.5" />
 
-        <!-- ✅ OTP Input - Fixed Keyboard Overlap -->
+        <!-- OTP Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -84,7 +100,8 @@
                 android:focusable="true"
                 android:focusableInTouchMode="true"
                 android:selectAllOnFocus="true"
-                android:imeOptions="actionDone" />
+                android:imeOptions="actionDone"
+                android:visibility="gone" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -95,7 +112,8 @@
             android:layout_height="56dp"
             android:text="Verify OTP"
             app:cornerRadius="12dp"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
 
         <!-- Resend OTP -->
         <com.google.android.material.button.MaterialButton
@@ -104,7 +122,8 @@
             android:layout_height="wrap_content"
             android:text="Resend OTP"
             style="@style/Widget.Material3.Button.TextButton"
-            android:textColor="@color/primary" />
+            android:textColor="@color/primary"
+            android:visibility="gone" />
 
     </LinearLayout>
 

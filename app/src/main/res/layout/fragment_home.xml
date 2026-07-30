@@ -10,18 +10,39 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:paddingBottom="80dp">
 
-        <!-- Header -->
-        <TextView
-            android:id="@+id/tvWelcome"
-            android:layout_width="wrap_content"
+        <!-- Header with Logout -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="👋 Welcome!"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:textColor="@color/primary"
-            android:layout_marginBottom="2dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="2dp">
+
+            <TextView
+                android:id="@+id/tvWelcome"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="👋 Welcome!"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnLogout"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="🚪 Logout"
+                android:textSize="12sp"
+                app:cornerRadius="8dp"
+                android:textColor="@color/white"
+                app:backgroundTint="@color/red" />
+
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvPhone"
@@ -114,308 +135,132 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- ✅ BOOK RIDE - Big Card -->
+        <!-- Single Card - Book Ride & Delivery -->
         <androidx.cardview.widget.CardView
             android:id="@+id/cardBookRide"
             android:layout_width="match_parent"
-            android:layout_height="170dp"
+            android:layout_height="wrap_content"
+            android:minHeight="160dp"
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="20dp"
             app:cardElevation="6dp"
             android:foreground="?attr/selectableItemBackground"
-            app:cardBackgroundColor="@color/primary">
+            app:cardBackgroundColor="@color/primary"
+            android:padding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="horizontal"
-                android:gravity="center"
-                android:padding="20dp">
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center">
 
-                <LinearLayout
-                    android:layout_width="0dp"
+                <!-- Top Text -->
+                <TextView
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:text="🚗 Book Ride &amp; Delivery"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/white"
+                    android:layout_marginBottom="12dp" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🚗"
-                        android:textSize="32sp" />
+                <!-- 3 Equal Cards: Bike, Car, Goods Delivery -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Book a Ride"
-                        android:textSize="22sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/white"
-                        android:layout_marginTop="4dp" />
+                    <!-- Bike -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="100dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/bg_white_circle"
+                        android:layout_marginEnd="6dp"
+                        android:padding="8dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Go anywhere, anytime"
-                        android:textSize="14sp"
-                        android:textColor="#CCFFFFFF" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🏍️"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Bike"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/black"
+                            android:layout_marginTop="2dp" />
+
+                    </LinearLayout>
+
+                    <!-- Car -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="100dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/bg_white_circle"
+                        android:layout_marginStart="6dp"
+                        android:layout_marginEnd="6dp"
+                        android:padding="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="🚗"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Car"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/black"
+                            android:layout_marginTop="2dp" />
+
+                    </LinearLayout>
+
+                    <!-- Goods Delivery -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="100dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center"
+                        android:background="@drawable/bg_white_circle"
+                        android:layout_marginStart="6dp"
+                        android:padding="8dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="📦"
+                            android:textSize="32sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Delivery"
+                            android:textSize="12sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/black"
+                            android:layout_marginTop="2dp" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
-
-                <ImageView
-                    android:layout_width="72dp"
-                    android:layout_height="72dp"
-                    android:src="@drawable/ic_book_ride"
-                    android:tint="@color/white"
-                    android:background="@drawable/bg_white_circle" />
 
             </LinearLayout>
 
         </androidx.cardview.widget.CardView>
-
-        <!-- Other Services Grid -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="More Services"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/black"
-            android:layout_marginBottom="12dp" />
-
-        <androidx.gridlayout.widget.GridLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:columnCount="2"
-            app:rowCount="3"
-            android:layout_marginTop="4dp">
-
-            <!-- Buy/Sell -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardBuySell"
-                android:layout_width="0dp"
-                android:layout_height="120dp"
-                android:layout_margin="6dp"
-                app:layout_columnWeight="1"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="3dp"
-                android:foreground="?attr/selectableItemBackground"
-                app:cardBackgroundColor="@color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🛒"
-                        android:textSize="32sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Buy/Sell"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black"
-                        android:layout_marginTop="4dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Marketplace"
-                        android:textSize="11sp"
-                        android:textColor="@color/grey" />
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- Room on Rent -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardRoomRent"
-                android:layout_width="0dp"
-                android:layout_height="120dp"
-                android:layout_margin="6dp"
-                app:layout_columnWeight="1"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="3dp"
-                android:foreground="?attr/selectableItemBackground"
-                app:cardBackgroundColor="@color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🏠"
-                        android:textSize="32sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Room Rent"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black"
-                        android:layout_marginTop="4dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Find your space"
-                        android:textSize="11sp"
-                        android:textColor="@color/grey" />
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- Food Delivery -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardFoodDelivery"
-                android:layout_width="0dp"
-                android:layout_height="120dp"
-                android:layout_margin="6dp"
-                app:layout_columnWeight="1"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="3dp"
-                android:foreground="?attr/selectableItemBackground"
-                app:cardBackgroundColor="@color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="🍔"
-                        android:textSize="32sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Food Delivery"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black"
-                        android:layout_marginTop="4dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Order food"
-                        android:textSize="11sp"
-                        android:textColor="@color/grey" />
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- Goods Delivery -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardGoodsDelivery"
-                android:layout_width="0dp"
-                android:layout_height="120dp"
-                android:layout_margin="6dp"
-                app:layout_columnWeight="1"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="3dp"
-                android:foreground="?attr/selectableItemBackground"
-                app:cardBackgroundColor="@color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="📦"
-                        android:textSize="32sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Goods Delivery"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black"
-                        android:layout_marginTop="4dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Send parcels"
-                        android:textSize="11sp"
-                        android:textColor="@color/grey" />
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-            <!-- Coming Soon -->
-            <androidx.cardview.widget.CardView
-                android:id="@+id/cardComingSoon"
-                android:layout_width="0dp"
-                android:layout_height="120dp"
-                android:layout_margin="6dp"
-                app:layout_columnWeight="1"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="3dp"
-                android:foreground="?attr/selectableItemBackground"
-                app:cardBackgroundColor="@color/white">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:orientation="vertical"
-                    android:gravity="center"
-                    android:padding="12dp">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="✨"
-                        android:textSize="32sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Coming Soon"
-                        android:textSize="14sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/black"
-                        android:layout_marginTop="4dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="New features"
-                        android:textSize="11sp"
-                        android:textColor="@color/grey" />
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
-        </androidx.gridlayout.widget.GridLayout>
 
         <!-- Footer -->
         <TextView

@@ -1,28 +1,31 @@
 package com.gr.kakarwairider.ui
 
 import android.Manifest
-import android.content.ContentValues.TAG
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Bundle
-import android.util.Log
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.cardview.widget.CardView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.google.firebase.firestore.FirebaseFirestore
+import com.gr.kakarwairider.MainActivity
 import com.gr.kakarwairider.MainActivity2
 import com.gr.kakarwairider.R
-import com.gr.kakarwairider.utils.FirestoreTest
 import com.gr.kakarwairider.utils.ServiceAreaChecker
 import com.gr.kakarwairider.viewmodel.AuthViewModel
 
@@ -36,12 +39,11 @@ class HomeFragment : Fragment() {
     private lateinit var progressServiceCheck: ProgressBar
     private lateinit var cardServiceUnavailable: MaterialCardView
     private lateinit var cardBookRide: CardView
-    private lateinit var cardBuySell: CardView
-    private lateinit var cardRoomRent: CardView
-    private lateinit var cardFoodDelivery: CardView
-    private lateinit var cardGoodsDelivery: CardView
+    private lateinit var btnLogout: MaterialButton
 
     private var isInServiceArea = false
+    private var locationDialog: AlertDialog? = null
+    private var isCheckingLocation = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -54,10 +56,6 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-
-
-
-
         // Initialize Views
         tvWelcome = view.findViewById(R.id.tvWelcome)
         tvPhone = view.findViewById(R.id.tvPhone)
@@ -65,20 +63,17 @@ class HomeFragment : Fragment() {
         progressServiceCheck = view.findViewById(R.id.progressServiceCheck)
         cardServiceUnavailable = view.findViewById(R.id.cardServiceUnavailable)
         cardBookRide = view.findViewById(R.id.cardBookRide)
-        cardBuySell = view.findViewById(R.id.cardBuySell)
-        cardRoomRent = view.findViewById(R.id.cardRoomRent)
-        cardFoodDelivery = view.findViewById(R.id.cardFoodDelivery)
-        cardGoodsDelivery = view.findViewById(R.id.cardGoodsDelivery)
+        btnLogout = view.findViewById(R.id.btnLogout)
 
         // Show User Info
         val phoneNumber = authViewModel.getCurrentUserPhone()
         tvWelcome.text = "👋 Welcome, ${phoneNumber?.takeLast(10) ?: "User"}!"
         tvPhone.text = "📱 $phoneNumber"
 
-        // ✅ Check Service Area
+        // Check Service Area
         checkServiceArea()
 
-        // ✅ Card Click Listeners
+        // Card Click Listener
         cardBookRide.setOnClickListener {
             if (isInServiceArea) {
                 startActivity(Intent(requireContext(), MainActivity2::class.java))
@@ -87,76 +82,203 @@ class HomeFragment : Fragment() {
             }
         }
 
-        cardBuySell.setOnClickListener {
-            Toast.makeText(requireContext(), "🛒 Buy/Sell - Coming Soon!", Toast.LENGTH_SHORT).show()
-        }
+        // ✅ Logout Button Click
+        btnLogout.setOnClickListener {
+            authViewModel.logout()
+            Toast.makeText(requireContext(), "🔓 Logged out successfully", Toast.LENGTH_SHORT).show()
 
-        cardRoomRent.setOnClickListener {
-            Toast.makeText(requireContext(), "🏠 Room Rent - Coming Soon!", Toast.LENGTH_SHORT).show()
-        }
+            // ✅ Navigate back to Login
+            findNavController().navigate(R.id.action_home_to_login)
 
-        cardFoodDelivery.setOnClickListener {
-            Toast.makeText(requireContext(), "🍔 Food Delivery - Coming Soon!", Toast.LENGTH_SHORT).show()
-        }
-
-        cardGoodsDelivery.setOnClickListener {
-            Toast.makeText(requireContext(), "📦 Goods Delivery - Coming Soon!", Toast.LENGTH_SHORT).show()
+            // ✅ Update MainActivity UI
+            (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
         }
     }
 
     // ============================================================
-    // ✅ CHECK SERVICE AREA (50km Radius)
+    // CHECK SERVICE AREA
     // ============================================================
 
     private fun checkServiceArea() {
-        // ✅ Permission Check
+        if (isCheckingLocation) return
+
+        if (!isAdded || context == null) {
+            return
+        }
+
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Toast.makeText(requireContext(), "Location permission required", Toast.LENGTH_SHORT).show()
+            tvServiceStatus.text = "⚠️ Enable location to check service availability"
+            tvServiceStatus.visibility = View.VISIBLE
+            progressServiceCheck.visibility = View.GONE
+            requestLocationPermission()
             return
         }
 
+        if (!isLocationEnabled()) {
+            showLocationSettingsDialog()
+            return
+        }
+
+        tvServiceStatus.text = "📍 Checking service availability..."
+        tvServiceStatus.visibility = View.VISIBLE
+        progressServiceCheck.visibility = View.VISIBLE
+
+        isCheckingLocation = true
+
         val checker = ServiceAreaChecker(requireContext())
         checker.checkUserLocation(object : ServiceAreaChecker.ServiceAreaCallback {
-            override fun onResult(isInServiceArea: Boolean, distance: Double, userLocation: LatLng?) {
-                this@HomeFragment.isInServiceArea = isInServiceArea
+            override fun onResult(isInService: Boolean, distance: Double, userLocation: LatLng?) {
+                isCheckingLocation = false
+
+                if (!isAdded || context == null) {
+                    return
+                }
+
+                this@HomeFragment.isInServiceArea = isInService
                 progressServiceCheck.visibility = View.GONE
 
-                if (isInServiceArea) {
-                    tvServiceStatus.text = "✅ Service Available in your area (${(distance / 1000).toInt()}km away)"
+                val areaName = checker.getAreaName()
+                val radiusKm = checker.getServiceRadius() / 1000
+
+                if (isInService) {
+                    tvServiceStatus.text = "✅ Service Available ($areaName, ${(distance / 1000).toInt()}km away)"
+                    tvServiceStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
                     cardServiceUnavailable.visibility = View.GONE
-                    enableAllCards(true)
+                    cardBookRide.isEnabled = true
+                    cardBookRide.alpha = 1.0f
                 } else {
-                    tvServiceStatus.text = "❌ Service not available (${(distance / 1000).toInt()}km away)"
+                    tvServiceStatus.text = "❌ Service not available ($areaName, ${(distance / 1000).toInt()}km away)"
+                    tvServiceStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
                     cardServiceUnavailable.visibility = View.VISIBLE
-                    enableAllCards(false)
+                    cardBookRide.isEnabled = false
+                    cardBookRide.alpha = 0.5f
                 }
             }
 
             override fun onError(message: String) {
+                isCheckingLocation = false
+
+                if (!isAdded || context == null) {
+                    return
+                }
+
                 progressServiceCheck.visibility = View.GONE
-                tvServiceStatus.text = "⚠️ Unable to check service area"
+                tvServiceStatus.text = "⚠️ Unable to check service area: $message"
+                tvServiceStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
                 Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
             }
         })
     }
 
-    private fun enableAllCards(enabled: Boolean) {
-        val alpha = if (enabled) 1.0f else 0.5f
-        cardBookRide.isEnabled = enabled
-        cardBookRide.alpha = alpha
+    private fun isLocationEnabled(): Boolean {
+        val locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
 
-        // Other cards disabled for now (Coming Soon)
-        cardBuySell.isEnabled = false
-        cardBuySell.alpha = 0.5f
-        cardRoomRent.isEnabled = false
-        cardRoomRent.alpha = 0.5f
-        cardFoodDelivery.isEnabled = false
-        cardFoodDelivery.alpha = 0.5f
-        cardGoodsDelivery.isEnabled = false
-        cardGoodsDelivery.alpha = 0.5f
+    private fun showLocationSettingsDialog() {
+        if (locationDialog?.isShowing == true) return
+
+        locationDialog = AlertDialog.Builder(requireContext())
+            .setTitle("⚠️ Location Required")
+            .setMessage("Please enable location services to check service availability.")
+            .setCancelable(false)
+            .setPositiveButton("Enable Location") { _, _ ->
+                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                tvServiceStatus.text = "⚠️ Location required to check service area"
+                tvServiceStatus.visibility = View.VISIBLE
+                progressServiceCheck.visibility = View.GONE
+                cardServiceUnavailable.visibility = View.VISIBLE
+                cardBookRide.isEnabled = false
+                cardBookRide.alpha = 0.5f
+            }
+            .create()
+        locationDialog?.show()
+    }
+
+    private fun dismissLocationDialog() {
+        locationDialog?.dismiss()
+        locationDialog = null
+    }
+
+    private fun requestLocationPermission() {
+        ActivityCompat.requestPermissions(
+            requireActivity(),
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ),
+            200
+        )
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == 200) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (!isLocationEnabled()) {
+                    showLocationSettingsDialog()
+                } else {
+                    checkServiceArea()
+                }
+            } else {
+                if (isAdded && context != null) {
+                    tvServiceStatus.text = "⚠️ Location permission required"
+                    tvServiceStatus.visibility = View.VISIBLE
+                    progressServiceCheck.visibility = View.GONE
+                    cardServiceUnavailable.visibility = View.VISIBLE
+                    cardBookRide.isEnabled = false
+                    cardBookRide.alpha = 0.5f
+                    Toast.makeText(requireContext(), "Location permission required", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        if (locationDialog?.isShowing == true && isLocationEnabled()) {
+            dismissLocationDialog()
+            view?.postDelayed({
+                if (isAdded && context != null) {
+                    checkServiceArea()
+                }
+            }, 300)
+            return
+        }
+
+        if (!isInServiceArea && isAdded && context != null) {
+            if (ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                if (isLocationEnabled()) {
+                    view?.postDelayed({
+                        if (isAdded && context != null) {
+                            checkServiceArea()
+                        }
+                    }, 300)
+                }
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        dismissLocationDialog()
+        isCheckingLocation = false
     }
 }

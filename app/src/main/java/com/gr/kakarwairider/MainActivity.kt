@@ -1,18 +1,10 @@
 package com.gr.kakarwairider
 
-import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.os.Bundle
-import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
-import androidx.appcompat.app.AlertDialog
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
@@ -20,15 +12,12 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.firebase.auth.FirebaseAuth
-import com.gr.kakarwairider.admin.AdminActivity
-import com.gr.kakarwairider.driver.DriverActivity
+import com.gr.kakarwairider.R
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var navController: NavController
     private lateinit var bottomNav: BottomNavigationView
-    private var locationDialog: AlertDialog? = null
-    private val PERMISSION_REQUEST_CODE = 100
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,8 +27,6 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.title = "Kakarwai Rider"
 
-        checkLocationAndProceed()
-
         bottomNav = findViewById(R.id.bottom_navigation)
 
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment
@@ -48,10 +35,8 @@ class MainActivity : AppCompatActivity() {
         val appBarConfiguration = AppBarConfiguration(
             setOf(
                 R.id.homeFragment,
-                R.id.driverLoginFragment,
-                R.id.vendorFragment,
-                R.id.adminLoginFragment,
-                R.id.loginFragment
+                R.id.historyFragment,
+                R.id.profileFragment
             )
         )
 
@@ -59,62 +44,28 @@ class MainActivity : AppCompatActivity() {
         bottomNav.setupWithNavController(navController)
 
         updateUIBasedOnLoginStatus()
-
-        bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.adminFragment -> {
-                    val sharedPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
-                    val isAdminLoggedIn = sharedPref.getBoolean("isAdminLoggedIn", false)
-
-                    if (isAdminLoggedIn) {
-                        startActivity(Intent(this, AdminActivity::class.java))
-                    } else {
-                        navController.navigate(R.id.adminLoginFragment)
-                    }
-                    true
-                }
-                R.id.driverLoginFragment -> {
-                    // ✅ Check if driver already logged in
-                    val driverPref = getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
-                    val isDriverLoggedIn = driverPref.getBoolean("isDriverLoggedIn", false)
-
-                    if (isDriverLoggedIn) {
-                        startActivity(Intent(this, DriverActivity::class.java))
-                    } else {
-                        navController.navigate(R.id.driverLoginFragment)
-                    }
-                    true
-                }
-                else -> {
-                    navController.navigate(item.itemId)
-                    true
-                }
-            }
-        }
     }
 
+    // ✅ Inflate menu
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
     }
 
+    // ✅ Handle logout click
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.action_logout) {
-            logout()
-            return true
+        when (item.itemId) {
+            R.id.action_logout -> {
+                logout()
+                return true
+            }
         }
         return super.onOptionsItemSelected(item)
     }
 
     private fun logout() {
-        // ✅ Clear all login states
-        val adminPref = getSharedPreferences("admin_prefs", Context.MODE_PRIVATE)
-        adminPref.edit().clear().apply()
-
-        val driverPref = getSharedPreferences("driver_prefs", Context.MODE_PRIVATE)
-        driverPref.edit().clear().apply()
-
         FirebaseAuth.getInstance().signOut()
+        Toast.makeText(this, "Logged out", Toast.LENGTH_SHORT).show()
         updateUIBasedOnLoginStatus()
         navController.navigate(R.id.action_home_to_login)
     }
@@ -129,96 +80,5 @@ class MainActivity : AppCompatActivity() {
             bottomNav.visibility = BottomNavigationView.GONE
             supportActionBar?.title = "Kakarwai Rider"
         }
-    }
-
-    private fun checkLocationAndProceed() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                PERMISSION_REQUEST_CODE
-            )
-            return
-        }
-
-        if (!isLocationEnabled()) {
-            showUncancelableLocationDialog()
-        }
-    }
-
-    private fun isLocationEnabled(): Boolean {
-        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-    }
-
-    private fun showUncancelableLocationDialog() {
-        if (locationDialog?.isShowing == true) return
-
-        locationDialog = AlertDialog.Builder(this)
-            .setTitle("⚠️ Location Required")
-            .setMessage("This app needs location access. Please enable location services to continue.")
-            .setCancelable(false)
-            .setPositiveButton("Enable Location") { _, _ ->
-                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-            }
-            .create()
-        locationDialog?.show()
-    }
-
-    private fun dismissLocationDialog() {
-        locationDialog?.dismiss()
-        locationDialog = null
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (!isLocationEnabled()) {
-                    showUncancelableLocationDialog()
-                }
-            } else {
-                showPermissionDeniedDialog()
-            }
-        }
-    }
-
-    private fun showPermissionDeniedDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("⚠️ Permission Required")
-            .setMessage("Location permission is mandatory to use this app. Please grant location permission.")
-            .setCancelable(false)
-            .setPositiveButton("Grant Permission") { _, _ ->
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                    PERMISSION_REQUEST_CODE
-                )
-            }
-            .setNegativeButton("Exit") { _, _ ->
-                finishAffinity()
-            }
-            .show()
-    }
-
-    override fun onResume() {
-        super.onResume()
-
-        if (locationDialog?.isShowing == true && isLocationEnabled()) {
-            dismissLocationDialog()
-        }
-
-        updateUIBasedOnLoginStatus()
-    }
-
-    override fun onSupportNavigateUp(): Boolean {
-        return navController.navigateUp() || super.onSupportNavigateUp()
     }
 }
