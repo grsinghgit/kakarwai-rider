@@ -99,4 +99,9 @@
         app:popUpTo="@id/driverDashboardFragment"
         app:popUpToInclusive="true" />
 
+    <fragment
+        android:id="@+id/userFragment"
+        android:name="com.gr.kakarwairider.ui.UserFragment"
+        android:label="Profile" />
+
 </navigation>
