@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
@@ -44,6 +46,7 @@ class HomeFragment : Fragment() {
     private var isInServiceArea = false
     private var locationDialog: AlertDialog? = null
     private var isCheckingLocation = false
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -82,21 +85,17 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // ✅ Logout Button Click
+        // Logout Button Click
         btnLogout.setOnClickListener {
             authViewModel.logout()
             Toast.makeText(requireContext(), "🔓 Logged out successfully", Toast.LENGTH_SHORT).show()
-
-            // ✅ Navigate back to Login
             findNavController().navigate(R.id.action_home_to_login)
-
-            // ✅ Update MainActivity UI
             (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
         }
     }
 
     // ============================================================
-    // CHECK SERVICE AREA
+    // CHECK SERVICE AREA — SAME AS LOGIN FRAGMENT
     // ============================================================
 
     private fun checkServiceArea() {
@@ -106,6 +105,7 @@ class HomeFragment : Fragment() {
             return
         }
 
+        // Check Location Permission
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -118,6 +118,7 @@ class HomeFragment : Fragment() {
             return
         }
 
+        // Check if Location is enabled
         if (!isLocationEnabled()) {
             showLocationSettingsDialog()
             return
@@ -227,10 +228,15 @@ class HomeFragment : Fragment() {
 
         if (requestCode == 200) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, check location again
                 if (!isLocationEnabled()) {
                     showLocationSettingsDialog()
                 } else {
-                    checkServiceArea()
+                    handler.postDelayed({
+                        if (isAdded && context != null) {
+                            checkServiceArea()
+                        }
+                    }, 500)
                 }
             } else {
                 if (isAdded && context != null) {
@@ -249,16 +255,18 @@ class HomeFragment : Fragment() {
     override fun onResume() {
         super.onResume()
 
+        // When user returns from Location Settings, force refresh
         if (locationDialog?.isShowing == true && isLocationEnabled()) {
             dismissLocationDialog()
-            view?.postDelayed({
+            handler.postDelayed({
                 if (isAdded && context != null) {
                     checkServiceArea()
                 }
-            }, 300)
+            }, 500)
             return
         }
 
+        // If location was previously disabled but now enabled, refresh
         if (!isInServiceArea && isAdded && context != null) {
             if (ContextCompat.checkSelfPermission(
                     requireContext(),
@@ -266,11 +274,11 @@ class HomeFragment : Fragment() {
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
                 if (isLocationEnabled()) {
-                    view?.postDelayed({
+                    handler.postDelayed({
                         if (isAdded && context != null) {
                             checkServiceArea()
                         }
-                    }, 300)
+                    }, 500)
                 }
             }
         }
@@ -280,5 +288,6 @@ class HomeFragment : Fragment() {
         super.onDestroyView()
         dismissLocationDialog()
         isCheckingLocation = false
+        handler.removeCallbacksAndMessages(null)
     }
 }

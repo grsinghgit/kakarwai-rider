@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
@@ -39,6 +41,7 @@ class LoginFragment : Fragment() {
     private var isInServiceArea = false
     private var locationDialog: AlertDialog? = null
     private var isCheckingLocation = false
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,19 +61,19 @@ class LoginFragment : Fragment() {
         btnVerifyOTP = view.findViewById(R.id.btnVerifyOTP)
         tvServiceStatus = view.findViewById(R.id.tvServiceStatus)
 
-        // ✅ Initially hide OTP fields
+        // Initially hide OTP fields
         etOTP.visibility = View.GONE
         btnVerifyOTP.visibility = View.GONE
         btnResendOTP.visibility = View.GONE
 
-        // ✅ Disable buttons until service area is checked
+        // Disable buttons until service area is checked
         btnSendOTP.isEnabled = false
         btnVerifyOTP.isEnabled = false
 
-        // ✅ Check Service Area First
+        // Check Service Area First
         checkServiceArea()
 
-        // ✅ Send OTP Button
+        // Send OTP Button
         btnSendOTP.setOnClickListener {
             val phoneNumber = etPhoneNumber.text.toString().trim()
 
@@ -92,7 +95,7 @@ class LoginFragment : Fragment() {
             }
         }
 
-        // ✅ Resend OTP Button
+        // Resend OTP Button
         btnResendOTP.setOnClickListener {
             val phoneNumber = etPhoneNumber.text.toString().trim()
 
@@ -114,7 +117,7 @@ class LoginFragment : Fragment() {
             }
         }
 
-        // ✅ Verify OTP Button
+        // Verify OTP Button
         btnVerifyOTP.setOnClickListener {
             val otp = etOTP.text.toString().trim()
             if (otp.isNotEmpty()) {
@@ -124,7 +127,7 @@ class LoginFragment : Fragment() {
             }
         }
 
-        // ✅ Observe LiveData
+        // Observe LiveData
         authViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             btnSendOTP.isEnabled = !isLoading && isInServiceArea
             btnVerifyOTP.isEnabled = !isLoading && isInServiceArea
@@ -163,25 +166,25 @@ class LoginFragment : Fragment() {
             }
         }
 
-        // ✅ Check if already logged in
+        // Check if already logged in
         if (authViewModel.isUserLoggedIn()) {
             findNavController().navigate(R.id.action_login_to_home)
         }
     }
 
     // ============================================================
-    // ✅ CHECK SERVICE AREA (Firebase se fetch)
+    // ✅ CHECK SERVICE AREA (Firebase se fetch) — WITH DELAY
     // ============================================================
 
     private fun checkServiceArea() {
-        // ✅ Prevent multiple concurrent checks
+        // Prevent multiple concurrent checks
         if (isCheckingLocation) return
 
         if (!isAdded || context == null) {
             return
         }
 
-        // ✅ Check Location Permission
+        // Check Location Permission
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -194,7 +197,7 @@ class LoginFragment : Fragment() {
             return
         }
 
-        // ✅ Check if Location is enabled
+        // Check if Location is enabled
         if (!isLocationEnabled()) {
             showLocationSettingsDialog()
             return
@@ -216,7 +219,6 @@ class LoginFragment : Fragment() {
 
                 isInServiceArea = isInService
 
-                // ✅ Get area details from checker
                 val areaName = checker.getAreaName()
                 val radiusKm = checker.getServiceRadius() / 1000
 
@@ -249,14 +251,14 @@ class LoginFragment : Fragment() {
         })
     }
 
-    // ✅ Check if Location is enabled
+    // Check if Location is enabled
     private fun isLocationEnabled(): Boolean {
         val locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
                 locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
 
-    // ✅ Show Location Settings Dialog
+    // Show Location Settings Dialog
     private fun showLocationSettingsDialog() {
         if (locationDialog?.isShowing == true) return
 
@@ -301,11 +303,16 @@ class LoginFragment : Fragment() {
 
         if (requestCode == 200) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // ✅ Permission granted, check location again
+                // Permission granted, check location again with delay
                 if (!isLocationEnabled()) {
                     showLocationSettingsDialog()
                 } else {
-                    checkServiceArea()
+                    // ✅ DELAY: Wait for location to be available
+                    handler.postDelayed({
+                        if (isAdded && context != null) {
+                            checkServiceArea()
+                        }
+                    }, 1500)
                 }
             } else {
                 if (isAdded && context != null) {
@@ -321,18 +328,19 @@ class LoginFragment : Fragment() {
     override fun onResume() {
         super.onResume()
 
-        // ✅ When user returns from Location Settings, force refresh
+        // When user returns from Location Settings, force refresh with delay
         if (locationDialog?.isShowing == true && isLocationEnabled()) {
             dismissLocationDialog()
-            view?.postDelayed({
+            // ✅ DELAY: Wait for location to be available
+            handler.postDelayed({
                 if (isAdded && context != null) {
                     checkServiceArea()
                 }
-            }, 300)
+            }, 1500)
             return
         }
 
-        // ✅ If location was previously disabled but now enabled, refresh
+        // If location was previously disabled but now enabled, refresh with delay
         if (!isInServiceArea && isAdded && context != null) {
             if (ContextCompat.checkSelfPermission(
                     requireContext(),
@@ -340,11 +348,11 @@ class LoginFragment : Fragment() {
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
                 if (isLocationEnabled()) {
-                    view?.postDelayed({
+                    handler.postDelayed({
                         if (isAdded && context != null) {
                             checkServiceArea()
                         }
-                    }, 300)
+                    }, 1500)
                 }
             }
         }
@@ -354,5 +362,6 @@ class LoginFragment : Fragment() {
         super.onDestroyView()
         dismissLocationDialog()
         isCheckingLocation = false
+        handler.removeCallbacksAndMessages(null)
     }
 }

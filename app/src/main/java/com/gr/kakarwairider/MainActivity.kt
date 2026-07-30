@@ -1,10 +1,20 @@
 package com.gr.kakarwairider
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
@@ -18,6 +28,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var navController: NavController
     private lateinit var bottomNav: BottomNavigationView
+
+    private var locationDialog: AlertDialog? = null
+    private var isPermissionFlowActive = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,7 +49,7 @@ class MainActivity : AppCompatActivity() {
             setOf(
                 R.id.homeFragment,
                 R.id.historyFragment,
-                R.id.profileFragment
+                R.id.userFragment
             )
         )
 
@@ -44,6 +57,166 @@ class MainActivity : AppCompatActivity() {
         bottomNav.setupWithNavController(navController)
 
         updateUIBasedOnLoginStatus()
+
+        // ✅ Check permissions in sequence
+        checkAndRequestPermissions()
+    }
+
+    private fun checkAndRequestPermissions() {
+        if (isPermissionFlowActive) return
+        isPermissionFlowActive = true
+
+        // ✅ Step 1: Check Location Permission
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestLocationPermission()
+            return
+        }
+
+        // ✅ Step 2: Check if Location is enabled
+        if (!isLocationEnabled()) {
+            showLocationSettingsDialog()
+            return
+        }
+
+        // ✅ Step 3: Check Notification Permission (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestNotificationPermission()
+                return
+            }
+        }
+
+        isPermissionFlowActive = false
+    }
+
+    private fun isLocationEnabled(): Boolean {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    }
+
+    private fun requestLocationPermission() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ),
+            200
+        )
+    }
+
+    private fun requestNotificationPermission() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+            300
+        )
+    }
+
+    private fun showLocationSettingsDialog() {
+        if (locationDialog?.isShowing == true) return
+
+        locationDialog = AlertDialog.Builder(this)
+            .setTitle("⚠️ Location Required")
+            .setMessage("Please enable location services to check service availability and book rides.")
+            .setCancelable(false)
+            .setPositiveButton("Enable Location") { _, _ ->
+                startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                isPermissionFlowActive = false
+                Toast.makeText(this, "Location required for service area check", Toast.LENGTH_SHORT).show()
+            }
+            .create()
+        locationDialog?.show()
+    }
+
+    private fun dismissLocationDialog() {
+        locationDialog?.dismiss()
+        locationDialog = null
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        when (requestCode) {
+            200 -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "✅ Location permission granted", Toast.LENGTH_SHORT).show()
+                    // ✅ Next: Check if location is enabled
+                    if (!isLocationEnabled()) {
+                        showLocationSettingsDialog()
+                    } else {
+                        // ✅ Next: Notification permission
+                        checkNotificationPermission()
+                    }
+                } else {
+                    isPermissionFlowActive = false
+                    Toast.makeText(this, "⚠️ Location permission required", Toast.LENGTH_SHORT).show()
+                }
+            }
+            300 -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "✅ Notification permission granted", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "⚠️ Notification permission denied", Toast.LENGTH_SHORT).show()
+                }
+                isPermissionFlowActive = false
+            }
+        }
+    }
+
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestNotificationPermission()
+                return
+            }
+        }
+        isPermissionFlowActive = false
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        // ✅ When user returns from Location Settings, recheck
+        if (locationDialog?.isShowing == true && isLocationEnabled()) {
+            dismissLocationDialog()
+            checkNotificationPermission()
+        }
+
+        // ✅ If location was disabled but now enabled, refresh
+        if (isLocationEnabled() && !isPermissionFlowActive) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                // All good, proceed
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        dismissLocationDialog()
     }
 
     // ✅ Inflate menu
@@ -52,7 +225,6 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    // ✅ Handle logout click
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.action_logout -> {

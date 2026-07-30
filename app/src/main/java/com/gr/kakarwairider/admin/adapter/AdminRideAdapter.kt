@@ -40,18 +40,17 @@ class AdminRideAdapter(
 
     override fun getItemCount(): Int = rides.size
 
-    // ✅ UPDATE RIDES - Without recreating adapter
+    // ✅ UPDATE RIDES - Without losing listeners
     fun updateRides(newRides: List<RideModel>) {
         this.rides = newRides
         notifyDataSetChanged()
         Log.d("AdminRideAdapter", "✅ Rides updated: ${newRides.size}")
     }
 
-    // ✅ UPDATE DRIVERS - Without recreating adapter
+    // ✅ UPDATE DRIVERS - Without losing listeners
     fun updateDrivers(newDrivers: List<DriverInfo>) {
         this.availableDrivers = newDrivers
         Log.d("AdminRideAdapter", "✅ Drivers updated: ${newDrivers.size}")
-        // No need to notify as drivers are only used in dialog
     }
 
     inner class RideViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -128,6 +127,12 @@ class AdminRideAdapter(
                 timeline.append(" → Complete: ${dateFormat.format(it.toDate())}")
             }
             tvTimeline.text = timeline.toString()
+
+            // ✅ Clear previous listeners before setting new ones
+            btnAssign.setOnClickListener(null)
+            btnReassign.setOnClickListener(null)
+            btnComplete.setOnClickListener(null)
+            btnCancel.setOnClickListener(null)
 
             // ✅ BUTTONS VISIBILITY - ALL STATUSES
             when (ride.status) {
