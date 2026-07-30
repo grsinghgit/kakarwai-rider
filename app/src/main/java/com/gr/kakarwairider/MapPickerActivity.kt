@@ -8,6 +8,8 @@ import android.location.Geocoder
 import android.location.Location
 import android.os.Bundle
 import android.os.Looper
+import android.view.View
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -19,6 +21,7 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.material.button.MaterialButton
 import java.io.IOException
 import java.util.*
 
@@ -32,17 +35,31 @@ class MapPickerActivity : AppCompatActivity(), OnMapReadyCallback {
     private var selectedLatLng: LatLng? = null
     private var isMapReady = false
 
+    // ✅ Views
+    private lateinit var tvAddress: TextView
+    private lateinit var btnToggleMapType: MaterialButton
+
+    // ✅ Map type state
+    private var isSatelliteView = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_map_picker)
+
+        tvAddress = findViewById(R.id.tvAddress)
+        btnToggleMapType = findViewById(R.id.btnToggleMapType)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         val mapFragment = supportFragmentManager.findFragmentById(R.id.mapPicker) as SupportMapFragment
         mapFragment.getMapAsync(this)
 
-        // ✅ Get current location
         getCurrentLocation()
+
+        // ✅ Toggle Button Click
+        btnToggleMapType.setOnClickListener {
+            toggleMapType()
+        }
     }
 
     private fun getCurrentLocation() {
@@ -100,12 +117,22 @@ class MapPickerActivity : AppCompatActivity(), OnMapReadyCallback {
         currentLocation?.let { latLng ->
             mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 14f))
             mMap.addMarker(MarkerOptions().position(latLng).title("📍 Your Location"))
+            getAddressFromLatLng(latLng) { address ->
+                tvAddress.text = "📍 $address"
+                tvAddress.visibility = View.VISIBLE
+            }
         }
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
         isMapReady = true
+
+        // ✅ Default: Satellite view
+        mMap.mapType = GoogleMap.MAP_TYPE_SATELLITE
+        isSatelliteView = true
+        btnToggleMapType.text = "🗺️ Normal"
+
         mMap.uiSettings.isZoomControlsEnabled = true
         mMap.uiSettings.isMyLocationButtonEnabled = true
 
@@ -114,42 +141,83 @@ class MapPickerActivity : AppCompatActivity(), OnMapReadyCallback {
             mMap.isMyLocationEnabled = true
         }
 
-        // ✅ Center on current location if available
         if (currentLocation != null) {
             centerMapOnCurrentLocation()
         } else {
-            // ✅ Default location (Delhi)
             val defaultLocation = LatLng(28.6139, 77.2090)
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(defaultLocation, 12f))
             Toast.makeText(this, "Getting your location...", Toast.LENGTH_SHORT).show()
         }
 
+        // ✅ Map Click Listener
         mMap.setOnMapClickListener { latLng ->
             mMap.clear()
             mMap.addMarker(MarkerOptions().position(latLng).title("📍 Selected Location"))
             selectedLatLng = latLng
-            confirmLocation(latLng)
+
+            getAddressFromLatLng(latLng) { address ->
+                tvAddress.text = "📍 $address"
+                tvAddress.visibility = View.VISIBLE
+            }
+        }
+
+        // ✅ Long press to confirm
+        mMap.setOnMapLongClickListener { latLng ->
+            mMap.clear()
+            mMap.addMarker(MarkerOptions().position(latLng).title("📍 Selected Location"))
+            selectedLatLng = latLng
+
+            getAddressFromLatLng(latLng) { address ->
+                tvAddress.text = "📍 $address"
+                tvAddress.visibility = View.VISIBLE
+                Toast.makeText(this, "📍 Location selected: $address", Toast.LENGTH_LONG).show()
+                confirmLocation(latLng)
+            }
+        }
+    }
+
+    // ✅ Toggle Map Type
+    private fun toggleMapType() {
+        if (isSatelliteView) {
+            // ✅ Switch to Normal
+            mMap.mapType = GoogleMap.MAP_TYPE_NORMAL
+            btnToggleMapType.text = "🛰️ Satellite"
+            isSatelliteView = false
+            Toast.makeText(this, "🗺️ Normal View", Toast.LENGTH_SHORT).show()
+        } else {
+            // ✅ Switch to Satellite
+            mMap.mapType = GoogleMap.MAP_TYPE_SATELLITE
+            btnToggleMapType.text = "🗺️ Normal"
+            isSatelliteView = true
+            Toast.makeText(this, "🛰️ Satellite View", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // ✅ Get address from LatLng
+    private fun getAddressFromLatLng(latLng: LatLng, callback: (String) -> Unit) {
+        val geocoder = Geocoder(this, Locale.getDefault())
+        try {
+            val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
+            if (!addresses.isNullOrEmpty()) {
+                val address = addresses[0].getAddressLine(0)
+                callback(address ?: "${latLng.latitude}, ${latLng.longitude}")
+            } else {
+                callback("${latLng.latitude}, ${latLng.longitude}")
+            }
+        } catch (e: IOException) {
+            e.printStackTrace()
+            callback("${latLng.latitude}, ${latLng.longitude}")
         }
     }
 
     private fun confirmLocation(latLng: LatLng) {
-        var address: String? = null
-        val geocoder = Geocoder(this, Locale.getDefault())
-
-        try {
-            val addresses = geocoder.getFromLocation(latLng.latitude, latLng.longitude, 1)
-            if (!addresses.isNullOrEmpty()) {
-                address = addresses[0].getAddressLine(0)
-            }
-        } catch (e: IOException) {
-            e.printStackTrace()
+        getAddressFromLatLng(latLng) { address ->
+            val intent = Intent()
+            intent.putExtra("location", latLng)
+            intent.putExtra("address", address)
+            setResult(RESULT_OK, intent)
+            finish()
         }
-
-        val intent = Intent()
-        intent.putExtra("location", latLng)
-        intent.putExtra("address", address ?: "${latLng.latitude}, ${latLng.longitude}")
-        setResult(RESULT_OK, intent)
-        finish()
     }
 
     override fun onRequestPermissionsResult(
@@ -167,7 +235,6 @@ class MapPickerActivity : AppCompatActivity(), OnMapReadyCallback {
 
     override fun onResume() {
         super.onResume()
-        // Refresh location on resume
         if (!::mMap.isInitialized) return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             == PackageManager.PERMISSION_GRANTED) {

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -9,14 +10,52 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- ✅ Address Display - Top Center (Light background) -->
+    <TextView
+        android:id="@+id/tvAddress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="📍 Select a location"
+        android:textSize="14sp"
+        android:textColor="@color/black"
+        android:background="#E8FFFFFF"
+        android:padding="12dp"
+        android:gravity="center"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:elevation="4dp"
+        android:visibility="gone" />
+
+    <!-- ✅ Toggle Button - Right Middle -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnToggleMapType"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_gravity="center_vertical|end"
+        android:layout_marginEnd="16dp"
+        android:text="🗺️ Normal"
+        android:textSize="12sp"
+        android:textColor="@color/white"
+        app:cornerRadius="24dp"
+        android:elevation="4dp"
+        app:backgroundTint="@color/primary"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp" />
+
+    <!-- ✅ Bottom Hint -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Tap on map to select location"
         android:background="#CC000000"
         android:textColor="@android:color/white"
-        android:padding="8dp"
+        android:padding="10dp"
+        android:textSize="13sp"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="32dp" />
+        android:layout_marginBottom="32dp"
+        app:cornerRadius="20dp"
+        android:elevation="4dp" />
 
 </FrameLayout>
