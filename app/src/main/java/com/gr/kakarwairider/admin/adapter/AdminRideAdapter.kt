@@ -18,8 +18,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class AdminRideAdapter(
-    private val rides: List<RideModel>,
-    private val availableDrivers: List<DriverInfo>,
+    private var rides: List<RideModel>,
+    private var availableDrivers: List<DriverInfo>,
     private val onAssign: (RideModel, String, String) -> Unit,
     private val onReassign: (RideModel, String, String) -> Unit,
     private val onCancel: (RideModel, String) -> Unit,
@@ -39,6 +39,20 @@ class AdminRideAdapter(
     }
 
     override fun getItemCount(): Int = rides.size
+
+    // ✅ UPDATE RIDES - Without recreating adapter
+    fun updateRides(newRides: List<RideModel>) {
+        this.rides = newRides
+        notifyDataSetChanged()
+        Log.d("AdminRideAdapter", "✅ Rides updated: ${newRides.size}")
+    }
+
+    // ✅ UPDATE DRIVERS - Without recreating adapter
+    fun updateDrivers(newDrivers: List<DriverInfo>) {
+        this.availableDrivers = newDrivers
+        Log.d("AdminRideAdapter", "✅ Drivers updated: ${newDrivers.size}")
+        // No need to notify as drivers are only used in dialog
+    }
 
     inner class RideViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvRideId: TextView = itemView.findViewById(R.id.tvRideId)
@@ -136,8 +150,8 @@ class AdminRideAdapter(
                 "STARTED", "ON_THE_WAY", "ARRIVED_PICKUP", "DESTINATION_REACHED" -> {
                     btnAssign.visibility = View.GONE
                     btnReassign.visibility = View.GONE
-                    btnComplete.visibility = View.VISIBLE  // ✅ COMPLETE BUTTON SHOW
-                    btnCancel.visibility = View.VISIBLE    // ✅ CANCEL BUTTON SHOW
+                    btnComplete.visibility = View.VISIBLE
+                    btnCancel.visibility = View.VISIBLE
                     btnComplete.setOnClickListener {
                         AlertDialog.Builder(itemView.context)
                             .setTitle("✅ Complete Ride")

@@ -22,6 +22,10 @@ import com.gr.kakarwairider.model.RideModel
 
 class AdminRideFragment : Fragment() {
 
+    companion object {
+        private const val TAG = "AdminRideFrag"
+    }
+
     private lateinit var recyclerView: RecyclerView
     private lateinit var tvEmpty: TextView
     private lateinit var tvTotalRides: TextView
@@ -32,8 +36,7 @@ class AdminRideFragment : Fragment() {
     private lateinit var adapter: AdminRideAdapter
 
     private val viewModel: AdminRideViewModel by viewModels()
-    private var currentRides: List<RideModel> = emptyList()
-    private var currentDrivers: List<DriverInfo> = emptyList()
+    private var highlightRideId: String? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -47,9 +50,16 @@ class AdminRideFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         initViews(view)
-        setupRecyclerView()
+        setupRecyclerView()  // ✅ Adapter create ONLY ONCE
         setupObservers()
         setupChips()
+
+        // Get rideId from arguments
+        arguments?.getString("rideId")?.let { rideId ->
+            highlightRideId = rideId
+            Log.d(TAG, "🔔 Highlight ride ID: $rideId")
+            viewModel.applyFilter(status = "PENDING")
+        }
 
         viewModel.applyFilter()
     }
@@ -65,23 +75,24 @@ class AdminRideFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
+        // ✅ Adapter create ONLY ONCE
         adapter = AdminRideAdapter(
             rides = emptyList(),
             availableDrivers = emptyList(),
             onAssign = { ride, driverId, driverName ->
-                Log.d("AdminRideFrag", "✅ Assign: ${ride.rideId} → $driverName")
+                Log.d(TAG, "✅ Assign: ${ride.rideId} → $driverName")
                 viewModel.assignDriver(ride.rideId, driverId, driverName)
             },
             onReassign = { ride, driverId, driverName ->
-                Log.d("AdminRideFrag", "🔄 Reassign: ${ride.rideId} → $driverName")
+                Log.d(TAG, "🔄 Reassign: ${ride.rideId} → $driverName")
                 viewModel.reassignDriver(ride.rideId, driverId, driverName)
             },
             onCancel = { ride, reason ->
-                Log.d("AdminRideFrag", "❌ Cancel: ${ride.rideId}, reason: $reason")
+                Log.d(TAG, "❌ Cancel: ${ride.rideId}, reason: $reason")
                 viewModel.cancelRide(ride.rideId, reason)
             },
             onComplete = { ride ->
-                Log.d("AdminRideFrag", "✅ Complete: ${ride.rideId}")
+                Log.d(TAG, "✅ Complete: ${ride.rideId}")
                 viewModel.completeRide(ride.rideId)
             }
         )
@@ -90,13 +101,32 @@ class AdminRideFragment : Fragment() {
     }
 
     private fun setupObservers() {
+        // ✅ Observer for filtered rides
         viewModel.filteredRides.observe(viewLifecycleOwner, Observer { rides ->
-            Log.d("AdminRideFrag", "📋 filteredRides update: ${rides.size}")
-            currentRides = rides
-            updateAdapter()
+            Log.d(TAG, "📋 filteredRides update: ${rides.size}")
+
+            // ✅ Update adapter data without recreating it
+            adapter.updateRides(rides)
+
+            // ✅ Highlight ride if rideId is set
+            highlightRideId?.let { rideId ->
+                val position = rides.indexOfFirst { it.rideId == rideId }
+                if (position != -1) {
+                    Log.d(TAG, "🎯 Found ride at position: $position")
+                    recyclerView.postDelayed({
+                        recyclerView.scrollToPosition(position)
+                        Toast.makeText(requireContext(), "🔔 New ride: ${rides[position].vehicleName}", Toast.LENGTH_LONG).show()
+                    }, 500)
+                    highlightRideId = null
+                } else {
+                    Log.d(TAG, "⚠️ Ride not found in list: $rideId")
+                }
+            }
+
             tvEmpty.visibility = if (rides.isEmpty()) View.VISIBLE else View.GONE
         })
 
+        // ✅ Observer for stats
         viewModel.stats.observe(viewLifecycleOwner, Observer { stats ->
             tvTotalRides.text = "📊 Total: ${stats.totalRides}"
             tvPendingRides.text = "🟠 Pending: ${stats.pendingRides}"
@@ -104,53 +134,32 @@ class AdminRideFragment : Fragment() {
             tvEarnings.text = "💰 ₹${stats.todayEarnings.toInt()}"
         })
 
+        // ✅ Observer for available drivers
         viewModel.availableDrivers.observe(viewLifecycleOwner, Observer { drivers ->
-            Log.d("AdminRideFrag", "👤 availableDrivers update: ${drivers.size}")
-            currentDrivers = drivers
-            updateAdapter()
+            Log.d(TAG, "👤 availableDrivers update: ${drivers.size}")
+            adapter.updateDrivers(drivers)  // ✅ Update without recreating
         })
 
+        // ✅ Observer for assignment success
         viewModel.assignmentSuccess.observe(viewLifecycleOwner, Observer { success ->
             if (success) {
                 Toast.makeText(requireContext(), "✅ Driver assigned successfully!", Toast.LENGTH_SHORT).show()
             }
         })
 
+        // ✅ Observer for loading
         viewModel.isLoading.observe(viewLifecycleOwner, Observer { loading ->
-            Log.d("AdminRideFrag", "⏳ Loading: $loading")
+            Log.d(TAG, "⏳ Loading: $loading")
         })
 
+        // ✅ Observer for error
         viewModel.errorMessage.observe(viewLifecycleOwner, Observer { error ->
             error?.let {
-                Log.e("AdminRideFrag", "❌ Error: $it")
+                Log.e(TAG, "❌ Error: $it")
                 Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
                 viewModel.clearError()
             }
         })
-    }
-
-    private fun updateAdapter() {
-        val rides = currentRides
-        val drivers = currentDrivers
-        Log.d("AdminRideFrag", "🔄 Updating adapter: ${rides.size} rides, ${drivers.size} drivers")
-
-        adapter = AdminRideAdapter(
-            rides = rides,
-            availableDrivers = drivers,
-            onAssign = { ride, driverId, driverName ->
-                viewModel.assignDriver(ride.rideId, driverId, driverName)
-            },
-            onReassign = { ride, driverId, driverName ->
-                viewModel.reassignDriver(ride.rideId, driverId, driverName)
-            },
-            onCancel = { ride, reason ->
-                viewModel.cancelRide(ride.rideId, reason)
-            },
-            onComplete = { ride ->
-                viewModel.completeRide(ride.rideId)
-            }
-        )
-        recyclerView.adapter = adapter
     }
 
     private fun setupChips() {
@@ -166,7 +175,7 @@ class AdminRideFragment : Fragment() {
                     R.id.chipCancelled -> "CANCELLED"
                     else -> "ALL"
                 }
-                Log.d("AdminRideFrag", "🔍 Filter: $status")
+                Log.d(TAG, "🔍 Filter: $status")
                 viewModel.applyFilter(status = status)
             }
         }
