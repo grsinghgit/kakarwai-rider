@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -12,6 +13,7 @@ import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -37,6 +39,10 @@ class LoginFragment : Fragment() {
     private lateinit var etOTP: TextInputEditText
     private lateinit var btnVerifyOTP: MaterialButton
     private lateinit var tvServiceStatus: TextView
+    private lateinit var tvPrivacyPolicy: TextView
+    private lateinit var tvTermsConditions: TextView
+    private lateinit var tvContactInfo: TextView
+    private lateinit var cbAcceptTerms: CheckBox
 
     private var isInServiceArea = false
     private var locationDialog: AlertDialog? = null
@@ -60,6 +66,10 @@ class LoginFragment : Fragment() {
         etOTP = view.findViewById(R.id.etOTP)
         btnVerifyOTP = view.findViewById(R.id.btnVerifyOTP)
         tvServiceStatus = view.findViewById(R.id.tvServiceStatus)
+        tvPrivacyPolicy = view.findViewById(R.id.tvPrivacyPolicy)
+        tvTermsConditions = view.findViewById(R.id.tvTermsConditions)
+        tvContactInfo = view.findViewById(R.id.tvContactInfo)
+        cbAcceptTerms = view.findViewById(R.id.cbAcceptTerms)
 
         // Initially hide OTP fields
         etOTP.visibility = View.GONE
@@ -73,6 +83,18 @@ class LoginFragment : Fragment() {
         // Check Service Area First
         checkServiceArea()
 
+        // Privacy Policy Click
+        tvPrivacyPolicy.setOnClickListener {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://sites.google.com/view/kakarwairidertc/privacy-policy"))
+            startActivity(intent)
+        }
+
+        // Terms and Conditions Click
+        tvTermsConditions.setOnClickListener {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://sites.google.com/view/kakarwairidertc/term-condition"))
+            startActivity(intent)
+        }
+
         // Send OTP Button
         btnSendOTP.setOnClickListener {
             val phoneNumber = etPhoneNumber.text.toString().trim()
@@ -84,6 +106,11 @@ class LoginFragment : Fragment() {
 
             if (phoneNumber.length != 10 || !phoneNumber.all { it.isDigit() }) {
                 Toast.makeText(requireContext(), "Enter valid 10 digit phone number", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (!cbAcceptTerms.isChecked) {
+                Toast.makeText(requireContext(), "Please accept Terms and Conditions", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
@@ -109,6 +136,11 @@ class LoginFragment : Fragment() {
                 return@setOnClickListener
             }
 
+            if (!cbAcceptTerms.isChecked) {
+                Toast.makeText(requireContext(), "Please accept Terms and Conditions", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             if (isInServiceArea) {
                 val fullPhoneNumber = "+91$phoneNumber"
                 authViewModel.resendOTP(fullPhoneNumber, requireActivity())
@@ -129,7 +161,7 @@ class LoginFragment : Fragment() {
 
         // Observe LiveData
         authViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            btnSendOTP.isEnabled = !isLoading && isInServiceArea
+            btnSendOTP.isEnabled = !isLoading && isInServiceArea && cbAcceptTerms.isChecked
             btnVerifyOTP.isEnabled = !isLoading && isInServiceArea
             if (isLoading) {
                 btnSendOTP.text = "Sending..."

@@ -21,6 +21,10 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 import com.google.firebase.auth.FirebaseAuth
 import com.gr.kakarwairider.R
 
@@ -28,9 +32,13 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var navController: NavController
     private lateinit var bottomNav: BottomNavigationView
+    private lateinit var appUpdateManager: AppUpdateManager
 
     private var locationDialog: AlertDialog? = null
     private var isPermissionFlowActive = false
+
+    // ✅ In-App Update Request Code
+    private val UPDATE_REQUEST_CODE = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,9 +66,44 @@ class MainActivity : AppCompatActivity() {
 
         updateUIBasedOnLoginStatus()
 
+        // ✅ Initialize App Update Manager
+        appUpdateManager = AppUpdateManagerFactory.create(this)
+
+        // ✅ Check for App Updates (FORCE UPDATE)
+        checkForForceUpdate()
+
         // ✅ Check permissions in sequence
         checkAndRequestPermissions()
     }
+
+    // ============================================================
+    // ✅ FORCE UPDATE — ONLY IMMEDIATE
+    // ============================================================
+
+    private fun checkForForceUpdate() {
+        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+            // ✅ Check if update is available
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE) {
+                // ✅ Check if IMMEDIATE update is allowed
+                if (appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)) {
+                    // ✅ Start IMMEDIATE update (full-screen, user must update)
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        AppUpdateType.IMMEDIATE,
+                        this,
+                        UPDATE_REQUEST_CODE
+                    )
+                }
+            }
+        }.addOnFailureListener {
+            android.util.Log.e("MainActivity", "Update check failed: ${it.message}")
+        }
+    }
+
+    // ============================================================
+    // ✅ PERMISSION FLOW
+    // ============================================================
 
     private fun checkAndRequestPermissions() {
         if (isPermissionFlowActive) return
@@ -156,11 +199,9 @@ class MainActivity : AppCompatActivity() {
             200 -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     Toast.makeText(this, "✅ Location permission granted", Toast.LENGTH_SHORT).show()
-                    // ✅ Next: Check if location is enabled
                     if (!isLocationEnabled()) {
                         showLocationSettingsDialog()
                     } else {
-                        // ✅ Next: Notification permission
                         checkNotificationPermission()
                     }
                 } else {
@@ -209,7 +250,7 @@ class MainActivity : AppCompatActivity() {
                     Manifest.permission.ACCESS_FINE_LOCATION
                 ) == PackageManager.PERMISSION_GRANTED
             ) {
-                // All good, proceed
+                // All good
             }
         }
     }

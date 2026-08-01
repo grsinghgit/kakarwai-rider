@@ -38,7 +38,7 @@
             android:textColor="@color/grey"
             android:layout_marginBottom="16dp" />
 
-        <!-- ✅ Service Status -->
+        <!-- Service Status -->
         <TextView
             android:id="@+id/tvServiceStatus"
             android:layout_width="match_parent"
@@ -124,6 +124,66 @@
             style="@style/Widget.Material3.Button.TextButton"
             android:textColor="@color/primary"
             android:visibility="gone" />
+
+        <!-- ✅ Accept Terms Checkbox -->
+        <CheckBox
+            android:id="@+id/cbAcceptTerms"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="8dp"
+            android:text="I accept the Terms and Conditions"
+            android:textSize="14sp"
+            android:textColor="@color/black" />
+
+        <!-- ✅ Privacy Policy & Terms Links -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/tvPrivacyPolicy"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📜 Privacy Policy"
+                android:textSize="13sp"
+                android:textColor="@color/primary"
+                android:padding="4dp"
+                android:background="?attr/selectableItemBackground" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" | "
+                android:textSize="13sp"
+                android:textColor="@color/grey" />
+
+            <TextView
+                android:id="@+id/tvTermsConditions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📋 Terms &amp; Conditions"
+                android:textSize="13sp"
+                android:textColor="@color/primary"
+                android:padding="4dp"
+                android:background="?attr/selectableItemBackground" />
+
+        </LinearLayout>
+
+        <!-- ✅ Contact Info -->
+        <TextView
+            android:id="@+id/tvContactInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📞 Indrajeet Singh (RINKU) | +91 9956505353\n✉️ kakarwairider@gmail.com"
+            android:textSize="11sp"
+            android:textColor="@color/grey"
+            android:gravity="center"
+            android:layout_marginTop="8dp"
+            android:padding="8dp" />
 
     </LinearLayout>
 

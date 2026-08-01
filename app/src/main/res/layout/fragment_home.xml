@@ -262,6 +262,53 @@
 
         </androidx.cardview.widget.CardView>
 
+        <!-- Contact Admin Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="12dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_contact_admin">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📞 Contact Admin"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Indrajeet Singh (RINKU)"
+                android:textSize="12sp"
+                android:textColor="@color/black" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📱 +91 9956505353"
+                android:textSize="12sp"
+                android:textColor="@color/black"
+                android:layout_marginBottom="4dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnCallAdmin"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:text="📞 Call Now"
+                android:textSize="11sp"
+                app:cornerRadius="8dp"
+                app:backgroundTint="@color/green"
+                android:textColor="@color/white"
+                android:layout_marginTop="4dp" />
+
+        </LinearLayout>
+
         <!-- Footer -->
         <TextView
             android:layout_width="match_parent"
@@ -270,7 +317,7 @@
             android:textSize="12sp"
             android:textColor="@color/grey"
             android:gravity="center"
-            android:layout_marginTop="24dp" />
+            android:layout_marginTop="16dp" />
 
     </LinearLayout>
 

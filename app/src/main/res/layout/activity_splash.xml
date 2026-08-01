@@ -5,29 +5,73 @@
     android:layout_height="match_parent"
     android:gravity="center"
     android:orientation="vertical"
-    android:background="@color/primary">
+    android:background="@color/primary"
+    android:padding="24dp">
 
     <!-- App Logo -->
     <ImageView
         android:layout_width="120dp"
         android:layout_height="120dp"
         android:src="@drawable/ic_splash_logo"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="8dp" />
 
     <!-- App Name -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="🚗 Kakarwai Rider"
-        android:textSize="32sp"
+        android:textSize="28sp"
         android:textStyle="bold"
         android:textColor="@color/white" />
+
+    <!-- Vehicle Icons Row -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="8dp"
+        android:gravity="center">
+
+        <!-- Bike -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🏍️"
+            android:textSize="24sp"
+            android:layout_marginEnd="12dp" />
+
+        <!-- Car -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🚗"
+            android:textSize="24sp"
+            android:layout_marginEnd="12dp" />
+
+        <!-- Delivery -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📦"
+            android:textSize="24sp" />
+
+    </LinearLayout>
 
     <!-- Loading Progress -->
     <ProgressBar
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="24dp"
         android:indeterminateTint="@color/white" />
+
+    <!-- ✅ Credit Line -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Owned by Indrajeet Singh (Rinku) Kakarwai"
+        android:textSize="12sp"
+        android:textColor="#CCFFFFFF"
+        android:layout_marginTop="32dp"
+        android:gravity="center" />
 
 </LinearLayout>

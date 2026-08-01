@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -42,6 +43,7 @@ class HomeFragment : Fragment() {
     private lateinit var cardServiceUnavailable: MaterialCardView
     private lateinit var cardBookRide: CardView
     private lateinit var btnLogout: MaterialButton
+    private lateinit var btnCallAdmin: MaterialButton
 
     private var isInServiceArea = false
     private var locationDialog: AlertDialog? = null
@@ -67,6 +69,7 @@ class HomeFragment : Fragment() {
         cardServiceUnavailable = view.findViewById(R.id.cardServiceUnavailable)
         cardBookRide = view.findViewById(R.id.cardBookRide)
         btnLogout = view.findViewById(R.id.btnLogout)
+        btnCallAdmin = view.findViewById(R.id.btnCallAdmin)
 
         // Show User Info
         val phoneNumber = authViewModel.getCurrentUserPhone()
@@ -91,6 +94,15 @@ class HomeFragment : Fragment() {
             Toast.makeText(requireContext(), "🔓 Logged out successfully", Toast.LENGTH_SHORT).show()
             findNavController().navigate(R.id.action_home_to_login)
             (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
+        }
+
+        // ✅ Call Admin Button Click
+        btnCallAdmin.setOnClickListener {
+            val phone = "+919956505353"
+            val intent = Intent(Intent.ACTION_DIAL).apply {
+                data = Uri.parse("tel:$phone")
+            }
+            startActivity(intent)
         }
     }
 
