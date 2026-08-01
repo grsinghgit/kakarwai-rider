@@ -195,7 +195,9 @@ class RideProcessingFragment : Fragment() {
         val destination = data["destination"] as? Map<*, *>
         val vehicleIcon = data["vehicleIcon"] as? String ?: "🚗"
         val vehicleName = data["vehicleName"] as? String ?: "Car"
-        val totalFare = data["totalFare"] as? Double ?: 0.0
+
+        // 🔥 YAHAN SE FARE KA LOGIC START HOTA HAI
+        var totalFare = (data["totalFare"] as? Number)?.toDouble() ?: 0.0
         val duration = data["duration"] as? Long ?: 0
 
         val pickupDistance = (data["pickupDistance"] as? Number)?.toDouble() ?: 0.0
@@ -208,9 +210,35 @@ class RideProcessingFragment : Fragment() {
         tvVehicle.text = "$vehicleIcon $vehicleName"
         tvDuration.text = "⏱️ ${duration} min"
 
-        tvEstimatedFare.text = "💰 Estimated Fare: ₹${DistanceUtils.formatFareInt(totalFare)}"
-        tvEstimatedFare.visibility = View.VISIBLE
-        tvTotalFare.visibility = View.GONE
+        // ✅ SAFETY CHECK: Agar totalFare 0 hai, toh "Pending" dikhao
+        if (totalFare > 0) {
+            val fareText = "₹${DistanceUtils.formatFareInt(totalFare)}"
+
+            // ✅ Status ke hisaab se "Estimated" ya "Total" decide karo
+            val currentStatus = viewModel.status.value
+            if (currentStatus == "ACCEPTED" || currentStatus == "STARTED" ||
+                currentStatus == "ON_THE_WAY" || currentStatus == "ARRIVED_PICKUP" ||
+                currentStatus == "DESTINATION_REACHED") {
+
+                // 🔥 ACCEPTED / STARTED mein "Total Fare" dikhao
+                tvEstimatedFare.visibility = View.GONE
+                tvTotalFare.visibility = View.VISIBLE
+                tvTotalFare.text = "💰 Total Fare: $fareText"
+                tvTotalFare.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+            } else {
+                // 🔥 SEARCHING / DRIVER_ASSIGNED mein "Estimated Fare" dikhao
+                tvEstimatedFare.visibility = View.VISIBLE
+                tvEstimatedFare.text = "💰 Estimated Fare: $fareText"
+                tvEstimatedFare.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
+                tvTotalFare.visibility = View.GONE
+            }
+        } else {
+            // Agar fare 0 hai toh "Calculate" dikhao
+            tvEstimatedFare.visibility = View.VISIBLE
+            tvEstimatedFare.text = "💰 Fare calculation pending..."
+            tvEstimatedFare.setTextColor(ContextCompat.getColor(requireContext(), R.color.grey))
+            tvTotalFare.visibility = View.GONE
+        }
 
         if (pickupDistance > 0 || tripDistance > 0 || totalDistance > 0) {
             val pickupDist = DistanceUtils.formatDistance(pickupDistance)
@@ -239,7 +267,6 @@ class RideProcessingFragment : Fragment() {
             "ACCEPTED" -> showAcceptedState()
             "STARTED" -> navigateToTracking()
             "COMPLETED", "REJECTED", "CANCELLED", "EXPIRED" -> {
-                // ✅ All these statuses navigate to MainActivity2 Home
                 showFinalState(status)
             }
             else -> showSearchingState()
@@ -279,7 +306,6 @@ class RideProcessingFragment : Fragment() {
             }
         }
 
-        // ✅ Navigate to MainActivity2 Home after delay
         handler.postDelayed({
             (requireActivity() as? MainActivity2)?.hideBottomNav(false)
             (requireActivity() as? MainActivity2)?.onRideStatusChanged(status)
@@ -299,9 +325,6 @@ class RideProcessingFragment : Fragment() {
         btnConfirmRide.isEnabled = false
         btnCancel.visibility = View.GONE
         btnCallDriver.visibility = View.GONE
-
-        tvTotalFare.visibility = View.GONE
-        tvEstimatedFare.visibility = View.VISIBLE
     }
 
     private fun showDriverAssignedState() {
@@ -315,10 +338,6 @@ class RideProcessingFragment : Fragment() {
         btnConfirmRide.isEnabled = false
         btnCancel.visibility = View.GONE
         btnCallDriver.visibility = View.GONE
-        tvTotalFare.visibility = View.GONE
-        tvEstimatedFare.visibility = View.VISIBLE
-
-        Toast.makeText(requireContext(), "⏳ Waiting for driver to accept", Toast.LENGTH_SHORT).show()
     }
 
     private fun showAcceptedState() {
@@ -331,9 +350,6 @@ class RideProcessingFragment : Fragment() {
         btnConfirmRide.visibility = View.VISIBLE
         btnCancel.visibility = View.VISIBLE
         btnRefresh.visibility = View.GONE
-
-        tvTotalFare.visibility = View.VISIBLE
-        tvEstimatedFare.visibility = View.GONE
 
         if (countDownTimer == null) {
             startTimer()
