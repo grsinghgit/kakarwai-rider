@@ -60,6 +60,7 @@ class LoginFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // ✅ Initialize Views
         etPhoneNumber = view.findViewById(R.id.etPhoneNumber)
         btnSendOTP = view.findViewById(R.id.btnSendOTP)
         btnResendOTP = view.findViewById(R.id.btnResendOTP)
@@ -71,31 +72,34 @@ class LoginFragment : Fragment() {
         tvContactInfo = view.findViewById(R.id.tvContactInfo)
         cbAcceptTerms = view.findViewById(R.id.cbAcceptTerms)
 
-        // Initially hide OTP fields
+        // ✅ Initialize SharedPreferences in AuthViewModel
+        authViewModel.initPrefs(requireContext())
+
+        // ✅ Initially hide OTP fields
         etOTP.visibility = View.GONE
         btnVerifyOTP.visibility = View.GONE
         btnResendOTP.visibility = View.GONE
 
-        // Disable buttons until service area is checked
+        // ✅ Disable buttons until service area is checked
         btnSendOTP.isEnabled = false
         btnVerifyOTP.isEnabled = false
 
-        // Check Service Area First
+        // ✅ Check Service Area First
         checkServiceArea()
 
-        // Privacy Policy Click
+        // ✅ Privacy Policy Click
         tvPrivacyPolicy.setOnClickListener {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://sites.google.com/view/kakarwairidertc/privacy-policy"))
             startActivity(intent)
         }
 
-        // Terms and Conditions Click
+        // ✅ Terms and Conditions Click
         tvTermsConditions.setOnClickListener {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://sites.google.com/view/kakarwairidertc/term-condition"))
             startActivity(intent)
         }
 
-        // Send OTP Button
+        // ✅ Send OTP Button
         btnSendOTP.setOnClickListener {
             val phoneNumber = etPhoneNumber.text.toString().trim()
 
@@ -114,15 +118,17 @@ class LoginFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            if (isInServiceArea) {
-                val fullPhoneNumber = "+91$phoneNumber"
-                authViewModel.sendOTP(fullPhoneNumber, requireActivity())
-            } else {
+            if (!isInServiceArea) {
                 Toast.makeText(requireContext(), "🚧 Service not available in your area", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
+
+            // ✅ Send OTP with limit check
+            val fullPhoneNumber = "+91$phoneNumber"
+            authViewModel.sendOTP(fullPhoneNumber, requireActivity())
         }
 
-        // Resend OTP Button
+        // ✅ Resend OTP Button
         btnResendOTP.setOnClickListener {
             val phoneNumber = etPhoneNumber.text.toString().trim()
 
@@ -141,15 +147,17 @@ class LoginFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            if (isInServiceArea) {
-                val fullPhoneNumber = "+91$phoneNumber"
-                authViewModel.resendOTP(fullPhoneNumber, requireActivity())
-            } else {
+            if (!isInServiceArea) {
                 Toast.makeText(requireContext(), "🚧 Service not available in your area", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
+
+            // ✅ Resend OTP with limit check
+            val fullPhoneNumber = "+91$phoneNumber"
+            authViewModel.resendOTP(fullPhoneNumber, requireActivity())
         }
 
-        // Verify OTP Button
+        // ✅ Verify OTP Button
         btnVerifyOTP.setOnClickListener {
             val otp = etOTP.text.toString().trim()
             if (otp.isNotEmpty()) {
@@ -159,7 +167,11 @@ class LoginFragment : Fragment() {
             }
         }
 
-        // Observe LiveData
+        // ============================================================
+        // ✅ OBSERVE LIVEDATA
+        // ============================================================
+
+        // ✅ Loading state
         authViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
             btnSendOTP.isEnabled = !isLoading && isInServiceArea && cbAcceptTerms.isChecked
             btnVerifyOTP.isEnabled = !isLoading && isInServiceArea
@@ -172,6 +184,7 @@ class LoginFragment : Fragment() {
             }
         }
 
+        // ✅ Verification Sent
         authViewModel.verificationSent.observe(viewLifecycleOwner) { sent ->
             if (sent) {
                 Toast.makeText(requireContext(), "OTP Sent Successfully!", Toast.LENGTH_SHORT).show()
@@ -183,6 +196,7 @@ class LoginFragment : Fragment() {
             }
         }
 
+        // ✅ OTP Verified
         authViewModel.otpVerified.observe(viewLifecycleOwner) { verified ->
             if (verified) {
                 Toast.makeText(requireContext(), "Login Successful! 🎉", Toast.LENGTH_LONG).show()
@@ -191,6 +205,7 @@ class LoginFragment : Fragment() {
             }
         }
 
+        // ✅ Error Message
         authViewModel.errorMessage.observe(viewLifecycleOwner) { error ->
             error?.let {
                 Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
@@ -198,7 +213,27 @@ class LoginFragment : Fragment() {
             }
         }
 
-        // Check if already logged in
+        // ✅ OTP Timer
+        authViewModel.otpTimerText.observe(viewLifecycleOwner) { timerText ->
+            if (timerText.isNotEmpty()) {
+                tvServiceStatus.text = timerText
+                tvServiceStatus.visibility = View.VISIBLE
+                tvServiceStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
+            }
+        }
+
+        // ✅ OTP Attempts Left
+        authViewModel.otpAttemptsLeft.observe(viewLifecycleOwner) { attemptsLeft ->
+            if (attemptsLeft <= 0) {
+                btnSendOTP.isEnabled = false
+                btnSendOTP.text = "🚫 OTP Limit Exceeded"
+            } else {
+                btnSendOTP.isEnabled = true
+                btnSendOTP.text = "Send OTP ($attemptsLeft attempts left)"
+            }
+        }
+
+        // ✅ Check if already logged in
         if (authViewModel.isUserLoggedIn()) {
             findNavController().navigate(R.id.action_login_to_home)
         }
