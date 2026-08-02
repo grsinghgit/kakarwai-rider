@@ -56,6 +56,7 @@ class AdminRideAdapter(
     inner class RideViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvRideId: TextView = itemView.findViewById(R.id.tvRideId)
         private val tvStatus: TextView = itemView.findViewById(R.id.tvStatus)
+        private val tvServiceType: TextView = itemView.findViewById(R.id.tvServiceType)  // ✅ NEW
         private val tvUserPhone: TextView = itemView.findViewById(R.id.tvUserPhone)
         private val tvDriverName: TextView = itemView.findViewById(R.id.tvDriverName)
         private val tvPickup: TextView = itemView.findViewById(R.id.tvPickup)
@@ -80,6 +81,22 @@ class AdminRideAdapter(
             tvDestination.text = "🏁 ${ride.destination?.address ?: "N/A"}"
             tvFare.text = "💰 ₹${ride.totalFare.toInt()}"
             tvVehicle.text = "${ride.vehicleIcon} ${ride.vehicleName}"
+
+            // ✅ SERVICE TYPE
+            val serviceType = ride.serviceType
+            val serviceTypeText = if (serviceType == "GOODS") {
+                "📦 Goods Delivery"
+            } else {
+                "🚗 Ride/Travel"
+            }
+            tvServiceType.text = serviceTypeText
+
+            // ✅ Service type color
+            if (serviceType == "GOODS") {
+                tvServiceType.setTextColor(itemView.context.getColor(R.color.orange))
+            } else {
+                tvServiceType.setTextColor(itemView.context.getColor(R.color.blue))
+            }
 
             // Status color
             val statusColor = when (ride.status) {
