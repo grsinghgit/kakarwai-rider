@@ -9,7 +9,6 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
 import com.google.android.libraries.places.api.model.Place
 import com.google.android.libraries.places.api.model.RectangularBounds
-import com.google.android.libraries.places.api.model.TypeFilter
 import com.google.android.libraries.places.widget.Autocomplete
 import com.google.android.libraries.places.widget.AutocompleteActivity
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
@@ -37,26 +36,24 @@ class SearchPlaceActivity : AppCompatActivity() {
             // 2️⃣ Current Location receive karein
             val currentLocation = intent.getParcelableExtra<LatLng>("current_location")
 
-            // 3️⃣ Autocomplete Intent Builder
+            // 3️⃣ Autocomplete Intent Builder (SAME as before)
             val fields = listOf(
                 Place.Field.ID,
                 Place.Field.NAME,
                 Place.Field.ADDRESS,
                 Place.Field.LAT_LNG,
                 Place.Field.TYPES,
-                Place.Field.RATING,           // ✅ Rating bhi dikhega
-                Place.Field.USER_RATING_COUNT // ✅ Reviews count
+                Place.Field.RATING,
+                Place.Field.USER_RATING_COUNT
             )
 
+            // ✅ Use Autocomplete.IntentBuilder (NOT PlaceAutocomplete.IntentBuilder)
             val intentBuilder = Autocomplete.IntentBuilder(
                 AutocompleteActivityMode.OVERLAY,
                 fields
             )
                 .setCountries(listOf("IN"))
-            // 🎯 TypeFilter HATAYA - Saare places dikhenge
-            // .setTypeFilter(TypeFilter.ADDRESS)  // ❌ Ye hatao
 
-            // 4️⃣ 🎯 LOCATION BIAS - Nearby places ko priority, par sab dikhein
             if (currentLocation != null) {
                 val latOffset = 0.45
                 val lngOffset = 0.45
@@ -71,9 +68,8 @@ class SearchPlaceActivity : AppCompatActivity() {
                 )
 
                 val bounds = RectangularBounds.newInstance(southwest, northeast)
-                // ✅ BIAS - nearby ko priority, par bahar ke bhi dikhein
                 intentBuilder.setLocationBias(bounds)
-                Log.d(TAG, "Location bias applied: 50km radius from current location")
+                Log.d(TAG, "Location bias applied")
             } else {
                 Log.d(TAG, "No current location available - search without bias")
             }
@@ -95,11 +91,12 @@ class SearchPlaceActivity : AppCompatActivity() {
             when (resultCode) {
                 RESULT_OK -> {
                     try {
+                        // ✅ Use Autocomplete.getPlaceFromIntent()
                         val place = Autocomplete.getPlaceFromIntent(data!!)
                         val latLng = place.latLng
                         val address = place.address ?: place.name
 
-                        Log.d(TAG, "Place selected: ${place.name}, Address: $address, Rating: ${place.rating}")
+                        Log.d(TAG, "Place selected: ${place.name}, Address: $address")
 
                         if (latLng != null) {
                             val resultIntent = Intent()
