@@ -20,24 +20,20 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.gr.kakarwairider.MainActivity
 import com.gr.kakarwairider.R
+import com.gr.kakarwairider.utils.GoogleSignInHelper
 import com.gr.kakarwairider.utils.ServiceAreaChecker
 import com.gr.kakarwairider.viewmodel.AuthViewModel
 
 class LoginFragment : Fragment() {
 
-    private val authViewModel: AuthViewModel by viewModels()
-    private lateinit var etPhoneNumber: TextInputEditText
-    private lateinit var btnSendOTP: MaterialButton
-    private lateinit var btnResendOTP: MaterialButton
-    private lateinit var etOTP: TextInputEditText
-    private lateinit var btnVerifyOTP: MaterialButton
+    private lateinit var googleSignInHelper: GoogleSignInHelper
+    private lateinit var btnGoogleSignIn: MaterialButton
     private lateinit var tvServiceStatus: TextView
     private lateinit var tvPrivacyPolicy: TextView
     private lateinit var tvTermsConditions: TextView
@@ -48,6 +44,9 @@ class LoginFragment : Fragment() {
     private var locationDialog: AlertDialog? = null
     private var isCheckingLocation = false
     private val handler = Handler(Looper.getMainLooper())
+
+    // ✅ Google Sign-In Request Code
+    private val RC_GOOGLE_SIGN_IN = 1001
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -61,28 +60,15 @@ class LoginFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         // ✅ Initialize Views
-        etPhoneNumber = view.findViewById(R.id.etPhoneNumber)
-        btnSendOTP = view.findViewById(R.id.btnSendOTP)
-        btnResendOTP = view.findViewById(R.id.btnResendOTP)
-        etOTP = view.findViewById(R.id.etOTP)
-        btnVerifyOTP = view.findViewById(R.id.btnVerifyOTP)
+        btnGoogleSignIn = view.findViewById(R.id.btnGoogleSignIn)
         tvServiceStatus = view.findViewById(R.id.tvServiceStatus)
         tvPrivacyPolicy = view.findViewById(R.id.tvPrivacyPolicy)
         tvTermsConditions = view.findViewById(R.id.tvTermsConditions)
         tvContactInfo = view.findViewById(R.id.tvContactInfo)
         cbAcceptTerms = view.findViewById(R.id.cbAcceptTerms)
 
-        // ✅ Initialize SharedPreferences in AuthViewModel
-        authViewModel.initPrefs(requireContext())
-
-        // ✅ Initially hide OTP fields
-        etOTP.visibility = View.GONE
-        btnVerifyOTP.visibility = View.GONE
-        btnResendOTP.visibility = View.GONE
-
-        // ✅ Disable buttons until service area is checked
-        btnSendOTP.isEnabled = false
-        btnVerifyOTP.isEnabled = false
+        // ✅ Initialize Google Sign-In Helper
+        googleSignInHelper = GoogleSignInHelper(requireContext())
 
         // ✅ Check Service Area First
         checkServiceArea()
@@ -99,20 +85,8 @@ class LoginFragment : Fragment() {
             startActivity(intent)
         }
 
-        // ✅ Send OTP Button
-        btnSendOTP.setOnClickListener {
-            val phoneNumber = etPhoneNumber.text.toString().trim()
-
-            if (phoneNumber.isEmpty()) {
-                Toast.makeText(requireContext(), "Enter phone number", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (phoneNumber.length != 10 || !phoneNumber.all { it.isDigit() }) {
-                Toast.makeText(requireContext(), "Enter valid 10 digit phone number", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
+        // ✅ Google Sign-In Button
+        btnGoogleSignIn.setOnClickListener {
             if (!cbAcceptTerms.isChecked) {
                 Toast.makeText(requireContext(), "Please accept Terms and Conditions", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -123,135 +97,80 @@ class LoginFragment : Fragment() {
                 return@setOnClickListener
             }
 
-            // ✅ Send OTP with limit check
-            val fullPhoneNumber = "+91$phoneNumber"
-            authViewModel.sendOTP(fullPhoneNumber, requireActivity())
+            // ✅ Start Google Sign-In
+            startGoogleSignIn()
         }
 
-        // ✅ Resend OTP Button
-        btnResendOTP.setOnClickListener {
-            val phoneNumber = etPhoneNumber.text.toString().trim()
-
-            if (phoneNumber.isEmpty()) {
-                Toast.makeText(requireContext(), "Enter phone number", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (phoneNumber.length != 10 || !phoneNumber.all { it.isDigit() }) {
-                Toast.makeText(requireContext(), "Enter valid 10 digit phone number", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (!cbAcceptTerms.isChecked) {
-                Toast.makeText(requireContext(), "Please accept Terms and Conditions", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (!isInServiceArea) {
-                Toast.makeText(requireContext(), "🚧 Service not available in your area", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            // ✅ Resend OTP with limit check
-            val fullPhoneNumber = "+91$phoneNumber"
-            authViewModel.resendOTP(fullPhoneNumber, requireActivity())
-        }
-
-        // ✅ Verify OTP Button
-        btnVerifyOTP.setOnClickListener {
-            val otp = etOTP.text.toString().trim()
-            if (otp.isNotEmpty()) {
-                authViewModel.verifyOTP(otp)
-            } else {
-                Toast.makeText(requireContext(), "Enter OTP", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        // ============================================================
-        // ✅ OBSERVE LIVEDATA
-        // ============================================================
-
-        // ✅ Loading state
-        authViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            btnSendOTP.isEnabled = !isLoading && isInServiceArea && cbAcceptTerms.isChecked
-            btnVerifyOTP.isEnabled = !isLoading && isInServiceArea
-            if (isLoading) {
-                btnSendOTP.text = "Sending..."
-                btnVerifyOTP.text = "Verifying..."
-            } else {
-                btnSendOTP.text = "Send OTP"
-                btnVerifyOTP.text = "Verify OTP"
-            }
-        }
-
-        // ✅ Verification Sent
-        authViewModel.verificationSent.observe(viewLifecycleOwner) { sent ->
-            if (sent) {
-                Toast.makeText(requireContext(), "OTP Sent Successfully!", Toast.LENGTH_SHORT).show()
-                etOTP.visibility = View.VISIBLE
-                btnVerifyOTP.visibility = View.VISIBLE
-                btnResendOTP.visibility = View.VISIBLE
-                btnSendOTP.visibility = View.GONE
-                etOTP.requestFocus()
-            }
-        }
-
-        // ✅ OTP Verified
-        authViewModel.otpVerified.observe(viewLifecycleOwner) { verified ->
-            if (verified) {
-                Toast.makeText(requireContext(), "Login Successful! 🎉", Toast.LENGTH_LONG).show()
-                (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
-                findNavController().navigate(R.id.action_login_to_home)
-            }
-        }
-
-        // ✅ Error Message
-        authViewModel.errorMessage.observe(viewLifecycleOwner) { error ->
-            error?.let {
-                Toast.makeText(requireContext(), it, Toast.LENGTH_LONG).show()
-                authViewModel.clearError()
-            }
-        }
-
-        // ✅ OTP Timer
-        authViewModel.otpTimerText.observe(viewLifecycleOwner) { timerText ->
-            if (timerText.isNotEmpty()) {
-                tvServiceStatus.text = timerText
-                tvServiceStatus.visibility = View.VISIBLE
-                tvServiceStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
-            }
-        }
-
-        // ✅ OTP Attempts Left
-        authViewModel.otpAttemptsLeft.observe(viewLifecycleOwner) { attemptsLeft ->
-            if (attemptsLeft <= 0) {
-                btnSendOTP.isEnabled = false
-                btnSendOTP.text = "🚫 OTP Limit Exceeded"
-            } else {
-                btnSendOTP.isEnabled = true
-                btnSendOTP.text = "Send OTP ($attemptsLeft attempts left)"
-            }
-        }
-
-        // ✅ Check if already logged in
-        if (authViewModel.isUserLoggedIn()) {
-            findNavController().navigate(R.id.action_login_to_home)
+        // ✅ Check if already signed in
+        if (googleSignInHelper.isAlreadySignedIn()) {
+            navigateToHome()
         }
     }
 
+    private fun startGoogleSignIn() {
+        val signInIntent = googleSignInHelper.getSignInIntent()
+        startActivityForResult(signInIntent, RC_GOOGLE_SIGN_IN)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == RC_GOOGLE_SIGN_IN) {
+            googleSignInHelper.handleSignInResult(
+                data = data,
+                onSuccess = { account ->
+                    // ✅ Google Sign-In Success
+                    Toast.makeText(requireContext(), "✅ Welcome ${account.displayName}!", Toast.LENGTH_SHORT).show()
+
+                    // ✅ Sign in with Firebase
+                    googleSignInHelper.signInWithFirebase(
+                        account = account,
+                        onComplete = { success, uid ->
+                            if (success && uid != null) {
+                                // ✅ Check if user exists in Firestore
+                                googleSignInHelper.checkUserExists(uid) { exists ->
+                                    if (exists) {
+                                        // ✅ Existing user → Direct Home
+                                        navigateToHome()
+                                    } else {
+                                        // ✅ New user → Navigate to UserFragment
+                                        val bundle = Bundle().apply {
+                                            putString("userName", account.displayName)
+                                            putString("userEmail", account.email)
+                                            putString("googleId", account.id)
+                                        }
+                                        findNavController().navigate(R.id.action_login_to_user, bundle)
+                                    }
+                                }
+                            } else {
+                                Toast.makeText(requireContext(), "❌ Firebase sign-in failed", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                },
+                onError = { error ->
+                    Toast.makeText(requireContext(), "❌ $error", Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+    }
+
+    private fun navigateToHome() {
+        (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
+        findNavController().navigate(R.id.action_login_to_home)
+    }
+
     // ============================================================
-    // ✅ CHECK SERVICE AREA (Firebase se fetch) — WITH DELAY
+    // ✅ CHECK SERVICE AREA
     // ============================================================
 
     private fun checkServiceArea() {
-        // Prevent multiple concurrent checks
         if (isCheckingLocation) return
 
         if (!isAdded || context == null) {
             return
         }
 
-        // Check Location Permission
         if (ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -259,12 +178,11 @@ class LoginFragment : Fragment() {
         ) {
             tvServiceStatus.text = "⚠️ Enable location to check service availability"
             tvServiceStatus.visibility = View.VISIBLE
-            btnSendOTP.isEnabled = false
+            btnGoogleSignIn.isEnabled = false
             requestLocationPermission()
             return
         }
 
-        // Check if Location is enabled
         if (!isLocationEnabled()) {
             showLocationSettingsDialog()
             return
@@ -284,7 +202,7 @@ class LoginFragment : Fragment() {
                     return
                 }
 
-                isInServiceArea = isInService
+                this@LoginFragment.isInServiceArea = isInService
 
                 val areaName = checker.getAreaName()
                 val radiusKm = checker.getServiceRadius() / 1000
@@ -292,13 +210,13 @@ class LoginFragment : Fragment() {
                 if (isInService) {
                     tvServiceStatus.text = "✅ Service Available ($areaName, ${(distance / 1000).toInt()}km away)"
                     tvServiceStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
-                    btnSendOTP.isEnabled = true
-                    btnSendOTP.alpha = 1.0f
+                    btnGoogleSignIn.isEnabled = true
+                    btnGoogleSignIn.alpha = 1.0f
                 } else {
                     tvServiceStatus.text = "🚧 Coming Soon! ($areaName, ${(distance / 1000).toInt()}km away)"
                     tvServiceStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
-                    btnSendOTP.isEnabled = false
-                    btnSendOTP.alpha = 0.5f
+                    btnGoogleSignIn.isEnabled = false
+                    btnGoogleSignIn.alpha = 0.5f
                     Toast.makeText(requireContext(), "🚧 Service coming soon in your area!", Toast.LENGTH_LONG).show()
                 }
             }
@@ -312,20 +230,18 @@ class LoginFragment : Fragment() {
 
                 tvServiceStatus.text = "⚠️ Unable to check service area: $message"
                 tvServiceStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.red))
-                btnSendOTP.isEnabled = false
+                btnGoogleSignIn.isEnabled = false
                 Toast.makeText(requireContext(), "Unable to check service area", Toast.LENGTH_SHORT).show()
             }
         })
     }
 
-    // Check if Location is enabled
     private fun isLocationEnabled(): Boolean {
         val locationManager = requireContext().getSystemService(Context.LOCATION_SERVICE) as LocationManager
         return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
                 locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
 
-    // Show Location Settings Dialog
     private fun showLocationSettingsDialog() {
         if (locationDialog?.isShowing == true) return
 
@@ -339,7 +255,7 @@ class LoginFragment : Fragment() {
             .setNegativeButton("Cancel") { _, _ ->
                 tvServiceStatus.text = "⚠️ Location required to check service area"
                 tvServiceStatus.visibility = View.VISIBLE
-                btnSendOTP.isEnabled = false
+                btnGoogleSignIn.isEnabled = false
             }
             .create()
         locationDialog?.show()
@@ -370,11 +286,9 @@ class LoginFragment : Fragment() {
 
         if (requestCode == 200) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permission granted, check location again with delay
                 if (!isLocationEnabled()) {
                     showLocationSettingsDialog()
                 } else {
-                    // ✅ DELAY: Wait for location to be available
                     handler.postDelayed({
                         if (isAdded && context != null) {
                             checkServiceArea()
@@ -385,7 +299,7 @@ class LoginFragment : Fragment() {
                 if (isAdded && context != null) {
                     tvServiceStatus.text = "⚠️ Location permission required"
                     tvServiceStatus.visibility = View.VISIBLE
-                    btnSendOTP.isEnabled = false
+                    btnGoogleSignIn.isEnabled = false
                     Toast.makeText(requireContext(), "Location permission required", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -395,10 +309,8 @@ class LoginFragment : Fragment() {
     override fun onResume() {
         super.onResume()
 
-        // When user returns from Location Settings, force refresh with delay
         if (locationDialog?.isShowing == true && isLocationEnabled()) {
             dismissLocationDialog()
-            // ✅ DELAY: Wait for location to be available
             handler.postDelayed({
                 if (isAdded && context != null) {
                     checkServiceArea()
@@ -407,7 +319,6 @@ class LoginFragment : Fragment() {
             return
         }
 
-        // If location was previously disabled but now enabled, refresh with delay
         if (!isInServiceArea && isAdded && context != null) {
             if (ContextCompat.checkSelfPermission(
                     requireContext(),

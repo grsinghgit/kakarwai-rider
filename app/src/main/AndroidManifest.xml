@@ -104,6 +104,9 @@
             android:value="@string/google_maps_key" />
 
         <!-- ❌ Driver Location Service REMOVED -->
+        <meta-data
+            android:name="com.google.android.gms.auth.api.signin.SignIn"
+            android:value="true" />
 
     </application>
 

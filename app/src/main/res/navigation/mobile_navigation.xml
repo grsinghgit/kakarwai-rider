@@ -47,5 +47,7 @@
     <action
         android:id="@+id/action_ride_to_history"
         app:destination="@id/historyFragment" />
+    <!-- ✅ Add this action -->
+
 
 </navigation>

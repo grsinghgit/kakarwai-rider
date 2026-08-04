@@ -31,12 +31,15 @@ class UserFragment : Fragment() {
     private lateinit var tvMemberSince: TextView
 
     private lateinit var etName: TextInputEditText
+    private lateinit var etPhone: TextInputEditText  // ✅ NEW: Phone input
     private lateinit var etEmail: TextInputEditText
     private lateinit var btnSave: MaterialButton
     private lateinit var btnEdit: MaterialButton
+    private lateinit var btnGoToHome: MaterialButton  // ✅ NEW: Go to Home button
     private lateinit var btnLogout: MaterialButton
 
     private var userId: String? = null
+    private var isFirstTimeUser = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -58,7 +61,23 @@ class UserFragment : Fragment() {
             return
         }
 
+        // ✅ Get arguments from bundle (for first-time users)
+        val userName = arguments?.getString("userName", "")
+        val userEmail = arguments?.getString("userEmail", "")
+        val googleId = arguments?.getString("googleId", "")
+
+        // ✅ Check if first-time user
+        isFirstTimeUser = googleId?.isNotEmpty() == true
+
         loadUserProfile()
+
+        // ✅ If first-time user, pre-fill name and email
+        if (isFirstTimeUser && !userName.isNullOrEmpty()) {
+            etName.setText(userName)
+            etName.isEnabled = true
+            etEmail.setText(userEmail ?: "")
+            tvName.text = userName
+        }
 
         // ✅ Edit Button
         btnEdit.setOnClickListener {
@@ -68,6 +87,11 @@ class UserFragment : Fragment() {
         // ✅ Save Button
         btnSave.setOnClickListener {
             saveUserProfile()
+        }
+
+        // ✅ Go to Home Button — Only works if phone number is available
+        btnGoToHome.setOnClickListener {
+            checkPhoneAndNavigate()
         }
 
         // ✅ Logout Button
@@ -88,9 +112,11 @@ class UserFragment : Fragment() {
         tvMemberSince = view.findViewById(R.id.tvMemberSince)
 
         etName = view.findViewById(R.id.etName)
+        etPhone = view.findViewById(R.id.etPhone)  // ✅ NEW
         etEmail = view.findViewById(R.id.etEmail)
         btnSave = view.findViewById(R.id.btnSave)
         btnEdit = view.findViewById(R.id.btnEdit)
+        btnGoToHome = view.findViewById(R.id.btnGoToHome)  // ✅ NEW
         btnLogout = view.findViewById(R.id.btnLogout)
     }
 
@@ -101,7 +127,7 @@ class UserFragment : Fragment() {
                 .addOnSuccessListener { document ->
                     if (document.exists()) {
                         val name = document.getString("name") ?: "User"
-                        val phone = document.getString("phone") ?: "N/A"
+                        val phone = document.getString("phone") ?: ""
                         val email = document.getString("email") ?: ""
                         val totalRides = document.getLong("totalRides") ?: 0
                         val totalSpent = document.getDouble("totalSpent") ?: 0.0
@@ -109,7 +135,7 @@ class UserFragment : Fragment() {
                         val createdAt = document.getTimestamp("createdAt")
 
                         tvName.text = name
-                        tvPhone.text = phone
+                        tvPhone.text = if (phone.isNotEmpty()) "📱 $phone" else "📱 Not set"
                         tvTotalRides.text = "$totalRides"
                         tvTotalSpent.text = "₹${String.format("%.2f", totalSpent)}"
                         tvRating.text = String.format("%.1f⭐", rating)
@@ -121,10 +147,21 @@ class UserFragment : Fragment() {
 
                         // ✅ Set EditTexts with current values
                         etName.setText(name)
+                        etPhone.setText(phone)
                         etEmail.setText(email)
 
                         // ✅ Initially disable editing
                         toggleEditMode(false)
+
+                        // ✅ Check if phone is available
+                        if (phone.isNotEmpty()) {
+                            btnGoToHome.isEnabled = true
+                            btnGoToHome.alpha = 1.0f
+                        } else {
+                            btnGoToHome.isEnabled = false
+                            btnGoToHome.alpha = 0.5f
+                        }
+
                     } else {
                         createUserDocument()
                     }
@@ -138,11 +175,16 @@ class UserFragment : Fragment() {
     private fun createUserDocument() {
         userId?.let { id ->
             val phone = FirebaseAuth.getInstance().currentUser?.phoneNumber ?: ""
+            val userName = arguments?.getString("userName", "") ?: ""
+            val userEmail = arguments?.getString("userEmail", "") ?: ""
+            val googleId = arguments?.getString("googleId", "") ?: ""
+
             val userData = hashMapOf(
                 "uid" to id,
                 "phone" to phone,
-                "name" to "",
-                "email" to "",
+                "name" to userName,
+                "email" to userEmail,
+                "googleId" to googleId,
                 "totalRides" to 0,
                 "totalSpent" to 0.0,
                 "rating" to 0.0,
@@ -154,7 +196,7 @@ class UserFragment : Fragment() {
             db.collection("users").document(id)
                 .set(userData)
                 .addOnSuccessListener {
-                    Toast.makeText(requireContext(), "✅ Profile created", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "✅ Profile created!", Toast.LENGTH_SHORT).show()
                     loadUserProfile()
                 }
                 .addOnFailureListener {
@@ -163,18 +205,17 @@ class UserFragment : Fragment() {
         }
     }
 
-    // ✅ Fixed: Edit mode toggle
     private fun toggleEditMode(edit: Boolean) {
         if (edit) {
-            // ✅ Enable editing
             etName.isEnabled = true
+            etPhone.isEnabled = true
             etEmail.isEnabled = true
             etName.requestFocus()
             btnSave.visibility = View.VISIBLE
             btnEdit.visibility = View.GONE
         } else {
-            // ✅ Disable editing
             etName.isEnabled = false
+            etPhone.isEnabled = false
             etEmail.isEnabled = false
             btnSave.visibility = View.GONE
             btnEdit.visibility = View.VISIBLE
@@ -183,6 +224,7 @@ class UserFragment : Fragment() {
 
     private fun saveUserProfile() {
         val name = etName.text.toString().trim()
+        val phone = etPhone.text.toString().trim()
         val email = etEmail.text.toString().trim()
 
         if (name.isEmpty()) {
@@ -190,9 +232,20 @@ class UserFragment : Fragment() {
             return
         }
 
+        if (phone.isEmpty()) {
+            Toast.makeText(requireContext(), "Phone number is required", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (phone.length != 10 || !phone.all { it.isDigit() }) {
+            Toast.makeText(requireContext(), "Enter valid 10 digit phone number", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         userId?.let { id ->
             val updates = mapOf(
                 "name" to name,
+                "phone" to phone,
                 "email" to email,
                 "updatedAt" to com.google.firebase.Timestamp.now()
             )
@@ -202,10 +255,39 @@ class UserFragment : Fragment() {
                 .addOnSuccessListener {
                     Toast.makeText(requireContext(), "✅ Profile updated!", Toast.LENGTH_SHORT).show()
                     tvName.text = name
+                    tvPhone.text = "📱 $phone"
+
+                    // ✅ Enable Go to Home button
+                    btnGoToHome.isEnabled = true
+                    btnGoToHome.alpha = 1.0f
+
                     toggleEditMode(false)
                 }
                 .addOnFailureListener {
                     Toast.makeText(requireContext(), "Failed to update", Toast.LENGTH_SHORT).show()
+                }
+        }
+    }
+
+    // ✅ Check phone and navigate to Home
+    private fun checkPhoneAndNavigate() {
+        userId?.let { id ->
+            db.collection("users").document(id)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        val phone = document.getString("phone") ?: ""
+                        if (phone.isNotEmpty()) {
+                            // ✅ Phone available → Navigate to Home
+                            (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
+                            findNavController().navigate(R.id.action_user_to_home)
+                        } else {
+                            Toast.makeText(requireContext(), "⚠️ Please add your phone number first", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .addOnFailureListener {
+                    Toast.makeText(requireContext(), "Failed to check profile", Toast.LENGTH_SHORT).show()
                 }
         }
     }

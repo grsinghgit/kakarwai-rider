@@ -41,7 +41,7 @@
                 android:id="@+id/tvPhone"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📱 +91XXXXXXXXXX"
+                android:text="📱 Not set"
                 android:textSize="14sp"
                 android:textColor="@color/grey" />
 
@@ -56,7 +56,7 @@
 
         </LinearLayout>
 
-        <!-- ✅ Edit Fields - Always Visible but disabled initially -->
+        <!-- Edit Fields -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilName"
             android:layout_width="match_parent"
@@ -70,6 +70,26 @@
                 android:layout_height="wrap_content"
                 android:hint="Your Name"
                 android:inputType="text"
+                android:enabled="false" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Phone Number Field -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/tilPhone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+            android:layout_marginBottom="12dp">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etPhone"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="📱 Phone Number (10 digit)"
+                android:inputType="phone"
+                android:maxLength="10"
+                android:digits="0123456789"
                 android:enabled="false" />
 
         </com.google.android.material.textfield.TextInputLayout>
@@ -184,7 +204,7 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Buttons -->
+        <!-- Edit Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnEdit"
             android:layout_width="match_parent"
@@ -194,6 +214,7 @@
             android:layout_marginBottom="8dp"
             app:backgroundTint="@color/primary" />
 
+        <!-- Save Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSave"
             android:layout_width="match_parent"
@@ -204,6 +225,19 @@
             android:visibility="gone"
             app:backgroundTint="@color/green" />
 
+        <!-- Go to Home Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnGoToHome"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="🏠 Go to Home"
+            app:cornerRadius="12dp"
+            android:layout_marginBottom="8dp"
+            android:enabled="false"
+            android:alpha="0.5"
+            app:backgroundTint="@color/primary" />
+
+        <!-- Logout Button -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLogout"
             android:layout_width="match_parent"

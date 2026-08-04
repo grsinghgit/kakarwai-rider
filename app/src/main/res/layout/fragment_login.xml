@@ -33,7 +33,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Login with Phone Number"
+            android:text="Sign in with Google"
             android:textSize="16sp"
             android:textColor="@color/grey"
             android:layout_marginBottom="16dp" />
@@ -52,80 +52,18 @@
             android:layout_marginBottom="16dp"
             android:visibility="gone" />
 
-        <!-- Phone Number -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_marginBottom="16dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etPhoneNumber"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="📱 Phone Number"
-                android:inputType="phone"
-                android:maxLength="15"
-                android:digits="0123456789+" />
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Send OTP Button -->
+        <!-- ✅ Google Sign-In Button -->
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSendOTP"
+            android:id="@+id/btnGoogleSignIn"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="Send OTP"
+            android:text="🟢 Sign in with Google"
             app:cornerRadius="12dp"
             android:layout_marginBottom="12dp"
             android:enabled="false"
             android:alpha="0.5" />
 
-        <!-- OTP Input -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-            android:layout_marginBottom="12dp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etOTP"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="🔐 Enter OTP"
-                android:inputType="number"
-                android:maxLength="6"
-                android:digits="0123456789"
-                android:importantForAutofill="no"
-                android:focusable="true"
-                android:focusableInTouchMode="true"
-                android:selectAllOnFocus="true"
-                android:imeOptions="actionDone"
-                android:visibility="gone" />
-
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <!-- Verify OTP Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnVerifyOTP"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="Verify OTP"
-            app:cornerRadius="12dp"
-            android:layout_marginBottom="8dp"
-            android:visibility="gone" />
-
-        <!-- Resend OTP -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnResendOTP"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Resend OTP"
-            style="@style/Widget.Material3.Button.TextButton"
-            android:textColor="@color/primary"
-            android:visibility="gone" />
-
-        <!-- ✅ Accept Terms Checkbox -->
+        <!-- Accept Terms Checkbox -->
         <CheckBox
             android:id="@+id/cbAcceptTerms"
             android:layout_width="match_parent"
@@ -136,7 +74,7 @@
             android:textSize="14sp"
             android:textColor="@color/black" />
 
-        <!-- ✅ Privacy Policy & Terms Links -->
+        <!-- Privacy Policy & Terms Links -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -173,7 +111,7 @@
 
         </LinearLayout>
 
-        <!-- ✅ Contact Info -->
+        <!-- Contact Info -->
         <TextView
             android:id="@+id/tvContactInfo"
             android:layout_width="match_parent"

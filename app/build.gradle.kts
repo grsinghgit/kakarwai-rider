@@ -120,5 +120,7 @@ dependencies {
     // ✅ Add these if not present
     implementation("org.json:json:20230227")
     implementation("com.google.android.play:app-update:2.1.0")
+    // ✅ Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.3.0")
 
 }

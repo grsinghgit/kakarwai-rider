@@ -129,6 +129,7 @@ class BookRideViewModel : ViewModel() {
             }
     }
 
+    // ✅ UPDATED: Added userPhone parameter
     fun bookRide(
         pickupAddress: String,
         pickupLat: Double,
@@ -144,6 +145,7 @@ class BookRideViewModel : ViewModel() {
         basePrice: Double,
         perKmRate: Double,
         totalFare: Double,
+        userPhone: String,  // ✅ NEW: Phone from users collection
         serviceType: String = "GOODS",
         destinationPhone: String = "",
         goodsType: String = "",
@@ -151,12 +153,20 @@ class BookRideViewModel : ViewModel() {
     ) {
         Log.d(TAG, "========== BOOK RIDE STARTED ==========")
         Log.d(TAG, "Service: $serviceType, Vehicle: $vehicleName")
+        Log.d(TAG, "User Phone: $userPhone")
 
         _isLoading.value = true
 
         val currentUser = auth.currentUser
         if (currentUser == null) {
             _errorMessage.value = "User not logged in"
+            _isLoading.value = false
+            return
+        }
+
+        // ✅ Validate phone number
+        if (userPhone.isEmpty() || userPhone.length < 10) {
+            _errorMessage.value = "⚠️ Please add your phone number in Profile first"
             _isLoading.value = false
             return
         }
@@ -173,7 +183,7 @@ class BookRideViewModel : ViewModel() {
         createRide(
             rideId = db.collection("rides").document().id,
             userId = currentUser.uid,
-            userPhone = currentUser.phoneNumber ?: "",
+            userPhone = userPhone,  // ✅ Using phone from users collection
             pickup = LocationData(pickupAddress, pickupLat, pickupLng),
             destination = LocationData(destinationAddress, destinationLat, destinationLng),
             vehicleType = vehicleType,

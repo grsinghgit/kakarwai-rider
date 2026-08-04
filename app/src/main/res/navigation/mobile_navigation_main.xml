@@ -104,4 +104,12 @@
         android:name="com.gr.kakarwairider.ui.UserFragment"
         android:label="Profile" />
 
+    <action
+        android:id="@+id/action_login_to_user"
+        app:destination="@id/userFragment" />
+    <!-- ✅ Add this action from UserFragment to Home -->
+    <action
+        android:id="@+id/action_user_to_home"
+        app:destination="@id/homeFragment" />
+
 </navigation>

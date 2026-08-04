@@ -94,6 +94,9 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
 
     private val LOCATION_PERMISSION_REQUEST = 200
 
+    // ✅ Track if phone fetch is in progress
+    private var isPhoneFetching = false
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -210,7 +213,6 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
         btnBookNow.isEnabled = true
     }
 
-    // ✅ FIXED: Missing semicolon issue resolved
     private fun setServiceType(type: String) {
         currentServiceType = type
         if (type == "GOODS") {
@@ -346,33 +348,74 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
                     }
                 }
 
-                checkActiveRide {
-                    val vehicle = selectedVehicle!!
-                    viewModel.bookRide(
-                        pickupAddress = pickup,
-                        pickupLat = pickupLatLng?.latitude ?: 0.0,
-                        pickupLng = pickupLatLng?.longitude ?: 0.0,
-                        destinationAddress = destination,
-                        destinationLat = destinationLatLng?.latitude ?: 0.0,
-                        destinationLng = destinationLatLng?.longitude ?: 0.0,
-                        vehicleType = vehicle.type,
-                        vehicleIcon = vehicle.icon,
-                        vehicleName = vehicle.name,
-                        distance = distanceValue,
-                        duration = durationValue,
-                        basePrice = vehicle.basePrice,
-                        perKmRate = vehicle.perKmRate,
-                        totalFare = fareValue,
-                        serviceType = currentServiceType,
-                        destinationPhone = if (currentServiceType == "GOODS") etDestinationPhone.text.toString().trim() else "",
-                        goodsType = if (currentServiceType == "GOODS") etGoodsType.text.toString().trim() else "",
-                        goodsConsent = if (currentServiceType == "GOODS") cbGoodsConsent.isChecked else false
-                    )
+                // ✅ Fetch phone from users collection before booking
+                fetchUserPhoneFromFirestore { phone ->
+                    if (phone.isNotEmpty()) {
+                        // ✅ Phone available → proceed
+                        checkActiveRide {
+                            val vehicle = selectedVehicle!!
+                            viewModel.bookRide(
+                                pickupAddress = pickup,
+                                pickupLat = pickupLatLng?.latitude ?: 0.0,
+                                pickupLng = pickupLatLng?.longitude ?: 0.0,
+                                destinationAddress = destination,
+                                destinationLat = destinationLatLng?.latitude ?: 0.0,
+                                destinationLng = destinationLatLng?.longitude ?: 0.0,
+                                vehicleType = vehicle.type,
+                                vehicleIcon = vehicle.icon,
+                                vehicleName = vehicle.name,
+                                distance = distanceValue,
+                                duration = durationValue,
+                                basePrice = vehicle.basePrice,
+                                perKmRate = vehicle.perKmRate,
+                                totalFare = fareValue,
+                                userPhone = phone,  // ✅ Phone from users collection
+                                serviceType = currentServiceType,
+                                destinationPhone = if (currentServiceType == "GOODS") etDestinationPhone.text.toString().trim() else "",
+                                goodsType = if (currentServiceType == "GOODS") etGoodsType.text.toString().trim() else "",
+                                goodsConsent = if (currentServiceType == "GOODS") cbGoodsConsent.isChecked else false
+                            )
+                        }
+                    } else {
+                        // ✅ Phone not found → show error
+                        Toast.makeText(requireContext(), "⚠️ Please add your phone number in Profile first", Toast.LENGTH_LONG).show()
+                    }
                 }
             } else {
                 Toast.makeText(requireContext(), "Please select pickup and destination", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    // ============================================================
+    // ✅ NEW: Fetch User Phone from Firestore
+    // ============================================================
+    private fun fetchUserPhoneFromFirestore(callback: (String) -> Unit) {
+        if (isPhoneFetching) return
+        isPhoneFetching = true
+
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        if (userId == null) {
+            isPhoneFetching = false
+            callback("")
+            return
+        }
+
+        db.collection("users").document(userId)
+            .get()
+            .addOnSuccessListener { document ->
+                isPhoneFetching = false
+                if (document.exists()) {
+                    val phone = document.getString("phone") ?: ""
+                    callback(phone)
+                } else {
+                    callback("")
+                }
+            }
+            .addOnFailureListener {
+                isPhoneFetching = false
+                callback("")
+            }
     }
 
     private fun checkActiveRide(callback: () -> Unit) {
@@ -410,7 +453,7 @@ class BookRideFragment : Fragment(), OnMapReadyCallback {
     }
 
     // ============================================================
-    // LOCATION FUNCTIONS
+    // LOCATION FUNCTIONS (No changes)
     // ============================================================
 
     private fun checkLocationPermissionAndEnable() {

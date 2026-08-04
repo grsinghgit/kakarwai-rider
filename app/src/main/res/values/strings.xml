@@ -8,6 +8,13 @@
     <string name="google_maps_key" translatable="false">AIzaSyBSvy5p1xPtljVrvN2iTA0FZ_Z3ksQdzT4</string>
     <string name="previous">Previous</string>
 
+
+
+
+        <!-- ✅ Google Sign-In Client ID -->
+        <string name="google_client_id">821772111865-jgepk791sv4ce0fh38cd0tnijssg1qib.apps.googleusercontent.com</string>
+
+
     <string name="lorem_ipsum">
         Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam in scelerisque sem. Mauris
         volutpat, dolor id interdum ullamcorper, risus dolor egestas lectus, sit amet mattis purus

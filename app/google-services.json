@@ -12,7 +12,36 @@
           "package_name": "com.gr.kakarwairider"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "821772111865-bj52rj5fd6jc9srrkds0l6mij8qb2rgp.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gr.kakarwairider",
+            "certificate_hash": "f9a0ac9adaccb9bee02a8a44998d560c61dec446"
+          }
+        },
+        {
+          "client_id": "821772111865-bv65m1nkrnm5ccn7pkotmu7353ou65h4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gr.kakarwairider",
+            "certificate_hash": "15aa1b34979d75254fcf6f505391d7160dfee1d7"
+          }
+        },
+        {
+          "client_id": "821772111865-j4a26j2na9q3u89unqagpif9nqak8573.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gr.kakarwairider",
+            "certificate_hash": "e177f35bbc2756e5ca102aac56543182d5d9a9cb"
+          }
+        },
+        {
+          "client_id": "821772111865-jgepk791sv4ce0fh38cd0tnijssg1qib.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBZRWeXevOqWn6o0lY0KxwRIheDswyaTk4"
@@ -20,7 +49,49 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "821772111865-jgepk791sv4ce0fh38cd0tnijssg1qib.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:821772111865:android:3b77dc5d5b732d50083728",
+        "android_client_info": {
+          "package_name": "com.kr.rider"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "821772111865-8vn4n15vljkcpf8mhlbm1thpvs2b6lda.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.kr.rider",
+            "certificate_hash": "e177f35bbc2756e5ca102aac56543182d5d9a9cb"
+          }
+        },
+        {
+          "client_id": "821772111865-jgepk791sv4ce0fh38cd0tnijssg1qib.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZRWeXevOqWn6o0lY0KxwRIheDswyaTk4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "821772111865-jgepk791sv4ce0fh38cd0tnijssg1qib.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
