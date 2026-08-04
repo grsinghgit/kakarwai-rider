@@ -16,63 +16,91 @@
 
         <!-- Logo -->
         <ImageView
-            android:layout_width="100dp"
-            android:layout_height="100dp"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
             android:src="@drawable/ic_splash_logo"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="12dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="🚗 Kakarwai Rider"
-            android:textSize="28sp"
+            android:textSize="32sp"
             android:textStyle="bold"
             android:textColor="@color/primary"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="4dp" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Sign in with Google"
-            android:textSize="16sp"
+            android:text="Delivery &amp; Travel Services"
+            android:textSize="14sp"
             android:textColor="@color/grey"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="20dp" />
 
-        <!-- Service Status -->
+        <!-- Service Status - with colorful background -->
         <TextView
             android:id="@+id/tvServiceStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="📍 Checking service availability..."
             android:textSize="14sp"
-            android:textColor="@color/orange"
+            android:textColor="@color/white"
             android:gravity="center"
-            android:padding="8dp"
-            android:background="@color/grey_light"
+            android:padding="12dp"
+            android:background="@drawable/bg_status_gradient"
             android:layout_marginBottom="16dp"
             android:visibility="gone" />
 
-        <!-- ✅ Google Sign-In Button -->
+        <!-- ✅ Accept Terms - CONTRAST STRIP -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/bg_terms_strip"
+            android:padding="12dp"
+            android:layout_marginBottom="12dp"
+            app:cardCornerRadius="8dp">
+
+            <CheckBox
+                android:id="@+id/cbAcceptTerms"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/primary"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="I accept the Terms and Conditions"
+                android:textSize="14sp"
+                android:textColor="@color/black"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- ✅ Google Sign-In Button - With Colorful G -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnGoogleSignIn"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:text="🟢 Sign in with Google"
-            app:cornerRadius="12dp"
+            android:text="Sign in with Google"
+            android:textSize="16sp"
+            android:textColor="@color/black"
+            android:backgroundTint="@color/white"
+            app:cornerRadius="8dp"
             android:layout_marginBottom="12dp"
             android:enabled="false"
-            android:alpha="0.5" />
-
-        <!-- Accept Terms Checkbox -->
-        <CheckBox
-            android:id="@+id/cbAcceptTerms"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="8dp"
-            android:text="I accept the Terms and Conditions"
-            android:textSize="14sp"
-            android:textColor="@color/black" />
+            android:alpha="0.5"
+            app:icon="@drawable/ic_google_colorful"
+            app:iconGravity="textStart"
+            app:iconSize="28dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:fontFamily="sans-serif-medium"
+            app:strokeColor="#E0E0E0"
+            app:strokeWidth="1dp" />
 
         <!-- Privacy Policy & Terms Links -->
         <LinearLayout
@@ -80,7 +108,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:layout_marginBottom="12dp">
+            android:layout_marginBottom="16dp">
 
             <TextView
                 android:id="@+id/tvPrivacyPolicy"

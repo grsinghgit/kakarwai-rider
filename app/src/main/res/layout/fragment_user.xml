@@ -70,7 +70,10 @@
                 android:layout_height="wrap_content"
                 android:hint="Your Name"
                 android:inputType="text"
-                android:enabled="false" />
+                android:enabled="false"
+                android:textColor="@color/black"
+                android:textColorHint="@color/grey"
+                android:alpha="1.0" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -90,7 +93,10 @@
                 android:inputType="phone"
                 android:maxLength="10"
                 android:digits="0123456789"
-                android:enabled="false" />
+                android:enabled="false"
+                android:textColor="@color/black"
+                android:textColorHint="@color/grey"
+                android:alpha="1.0" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -107,7 +113,10 @@
                 android:layout_height="wrap_content"
                 android:hint="Email (Optional)"
                 android:inputType="textEmailAddress"
-                android:enabled="false" />
+                android:enabled="false"
+                android:textColor="@color/black"
+                android:textColorHint="@color/grey"
+                android:alpha="1.0" />
 
         </com.google.android.material.textfield.TextInputLayout>
 
