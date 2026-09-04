@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -134,12 +135,26 @@ class LoginFragment : Fragment() {
                                         navigateToHome()
                                     } else {
                                         // ✅ New user → Navigate to UserFragment
-                                        val bundle = Bundle().apply {
-                                            putString("userName", account.displayName)
-                                            putString("userEmail", account.email)
-                                            putString("googleId", account.id)
+                                        try {
+                                            val bundle = Bundle().apply {
+                                                putString("userName", account.displayName ?: "User")
+                                                putString("userEmail", account.email ?: "")
+                                                putString("googleId", account.id ?: "")
+                                            }
+
+                                            // ✅ Check if action exists before navigating
+                                            val navController = findNavController()
+                                            val destination = navController.graph.findNode(R.id.action_login_to_user)
+                                            if (destination != null) {
+                                                navController.navigate(R.id.action_login_to_user, bundle)
+                                            } else {
+                                                // ✅ Fallback: Navigate directly to UserFragment with bundle
+                                                navController.navigate(R.id.userFragment, bundle)
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("LoginFragment", "Navigation failed: ${e.message}")
+                                            Toast.makeText(requireContext(), "❌ Navigation failed: ${e.message}", Toast.LENGTH_SHORT).show()
                                         }
-                                        findNavController().navigate(R.id.action_login_to_user, bundle)
                                     }
                                 }
                             } else {
@@ -156,8 +171,13 @@ class LoginFragment : Fragment() {
     }
 
     private fun navigateToHome() {
-        (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
-        findNavController().navigate(R.id.action_login_to_home)
+        try {
+            (requireActivity() as? MainActivity)?.updateUIBasedOnLoginStatus()
+            findNavController().navigate(R.id.action_login_to_home)
+        } catch (e: Exception) {
+            Log.e("LoginFragment", "Navigate to home failed: ${e.message}")
+            Toast.makeText(requireContext(), "❌ Navigation failed", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ============================================================

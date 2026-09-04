@@ -1,9 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    // ✅ Google Services Plugin (Firebase)
-    id("com.google.gms.google-services") version "4.4.2"
 }
+// ✅ Apply Google Services Plugin HERE
+apply(plugin = "com.google.gms.google-services")
 
 android {
     namespace = "com.gr.kakarwairider"
@@ -13,19 +13,38 @@ android {
         applicationId = "com.gr.kakarwairider"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3"
+        versionCode = 10
+        versionName = "1.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // ============================================================
+    // ✅ SIGNING CONFIG - RELEASE (Play Store ke liye)
+    // ============================================================
+    signingConfigs {
+        create("release") {
+            storeFile = file("C:/Users/adesh-computer/Desktop/kakarwairider/kakarwaikey")   // 📁 Keystore file path
+            storePassword = "g@s6387781417"        // 🔑 Store password
+            keyAlias = "kakarwaikey"                  // 🔑 Key alias
+            keyPassword = "g@s6387781417"            // 🔑 Key password
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")  // ✅ यह line ज़रूरी है
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")  // ✅ Release signing
+        }
+
+        debug {
+            // Debug signing - uses default debug keystore
+            isMinifyEnabled = false
         }
     }
 
@@ -111,16 +130,21 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
     // GridLayout (for 2-column grid)
     implementation("androidx.gridlayout:gridlayout:1.0.0")
+
     // ✅ Coroutines with Play Services (for Firestore await())
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
     // ✅ Razorpay SDK
     implementation(libs.razorpay.checkout)
+
     // ✅ Add these if not present
     implementation("org.json:json:20230227")
     implementation("com.google.android.play:app-update:2.1.0")
-    // ✅ Google Sign-In
-    implementation("com.google.android.gms:play-services-auth:21.3.0")
 
+    // ✅ Google Sign-In
+    implementation("com.google.android.gms:play-services-auth:21.6.0")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity:18.0.0")
 }

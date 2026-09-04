@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "821772111865-2ji1prongfu8ick4m13ijvvorrvsk7g8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gr.kakarwairider",
+            "certificate_hash": "09d70df9d87a699690b9e192bd7775a7ba9d5630"
+          }
+        },
+        {
           "client_id": "821772111865-bj52rj5fd6jc9srrkds0l6mij8qb2rgp.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
@@ -27,6 +35,14 @@
           "android_info": {
             "package_name": "com.gr.kakarwairider",
             "certificate_hash": "15aa1b34979d75254fcf6f505391d7160dfee1d7"
+          }
+        },
+        {
+          "client_id": "821772111865-gftnkfvcujkc8eb88oa3t6g990au4rbf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gr.kakarwairider",
+            "certificate_hash": "b3afe7435b35b3e7c1802be3798a3debdc59e64f"
           }
         },
         {

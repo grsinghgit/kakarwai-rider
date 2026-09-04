@@ -14,7 +14,7 @@ import com.google.firebase.auth.AuthCredential
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
-import com.gr.kakarwairider.R   // ✅ ADD THIS IMPORT
+import com.gr.kakarwairider.R
 
 class GoogleSignInHelper(private val context: Context) {
 
@@ -50,7 +50,7 @@ class GoogleSignInHelper(private val context: Context) {
     }
 
     /**
-     * ✅ Handle Sign-In Result
+     * ✅ Handle Sign-In Result with Detailed Logging
      */
     fun handleSignInResult(
         data: Intent?,
@@ -64,13 +64,46 @@ class GoogleSignInHelper(private val context: Context) {
 
             account?.let {
                 Log.d(TAG, "✅ Google Sign-In Success: ${it.displayName}")
+                Log.d(TAG, "   Email: ${it.email}")
+                Log.d(TAG, "   ID Token: ${it.idToken?.take(20)}...")
                 onSuccess(it)
             } ?: run {
+                Log.e(TAG, "❌ Account is null")
                 onError("Account is null")
             }
         } catch (e: ApiException) {
-            Log.e(TAG, "❌ Google Sign-In Failed: ${e.message}")
-            onError("Sign-in failed: ${e.message}")
+            // ✅ DETAILED ERROR LOGGING FOR ERROR 10
+            Log.e(TAG, "========== GOOGLE SIGN-IN FAILED ==========")
+            Log.e(TAG, "❌ Status Code: ${e.statusCode}")
+            Log.e(TAG, "❌ Message: ${e.message}")
+            Log.e(TAG, "❌ Status Message: ${e.status?.statusMessage}")
+
+            // ✅ Error 10 = DEVELOPER_ERROR (SHA-1 mismatch)
+            if (e.statusCode == 10) {
+                Log.e(TAG, "❌❌❌ ERROR 10: DEVELOPER_ERROR ❌❌❌")
+                Log.e(TAG, "🔍 This means SHA-1 fingerprint mismatch!")
+                Log.e(TAG, "🔍 Play Store signing key SHA-1 is NOT in Firebase Console")
+                Log.e(TAG, "🔍 Solution: Add Play Console's SHA-1 to Firebase Console")
+                Log.e(TAG, "🔍 Steps:")
+                Log.e(TAG, "   1. Play Console → Setup → App integrity")
+                Log.e(TAG, "   2. Copy SHA-1 from App signing key certificate")
+                Log.e(TAG, "   3. Firebase Console → Project Settings → Your apps")
+                Log.e(TAG, "   4. Add fingerprint → Paste SHA-1 → Save")
+                Log.e(TAG, "   5. Download new google-services.json")
+                Log.e(TAG, "   6. Clean + Rebuild + Upload new AAB")
+            }
+
+            // ✅ Check if it's a resolution error
+            if (e.status?.hasResolution() == true) {
+                Log.d(TAG, "⚠️ Status has resolution - maybe user needs to interact")
+            }
+
+            Log.e(TAG, "=============================================")
+            onError("Sign-in failed: ${e.message} (Code: ${e.statusCode})")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Unexpected error: ${e.message}")
+            e.printStackTrace()
+            onError("Unexpected error: ${e.message}")
         }
     }
 
@@ -81,17 +114,36 @@ class GoogleSignInHelper(private val context: Context) {
         account: GoogleSignInAccount,
         onComplete: (Boolean, String?) -> Unit
     ) {
-        val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-        auth.signInWithCredential(credential)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    Log.d(TAG, "✅ Firebase Auth Success: ${auth.currentUser?.uid}")
-                    onComplete(true, auth.currentUser?.uid)
-                } else {
-                    Log.e(TAG, "❌ Firebase Auth Failed: ${task.exception?.message}")
-                    onComplete(false, task.exception?.message)
+        try {
+            val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+            Log.d(TAG, "🔐 Signing in with Firebase...")
+            Log.d(TAG, "   ID Token: ${account.idToken?.take(20)}...")
+
+            auth.signInWithCredential(credential)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        Log.d(TAG, "✅ Firebase Auth Success: ${auth.currentUser?.uid}")
+                        Log.d(TAG, "   User: ${auth.currentUser?.displayName}")
+                        Log.d(TAG, "   Email: ${auth.currentUser?.email}")
+                        onComplete(true, auth.currentUser?.uid)
+                    } else {
+                        val exception = task.exception
+                        Log.e(TAG, "❌ Firebase Auth Failed")
+                        Log.e(TAG, "   Error: ${exception?.message}")
+                        Log.e(TAG, "   Cause: ${exception?.cause}")
+                        exception?.printStackTrace()
+                        onComplete(false, exception?.message)
+                    }
                 }
-            }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "❌ Firebase Auth Failure Listener: ${e.message}")
+                    onComplete(false, e.message)
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Exception during Firebase sign-in: ${e.message}")
+            e.printStackTrace()
+            onComplete(false, e.message)
+        }
     }
 
     /**
@@ -101,12 +153,16 @@ class GoogleSignInHelper(private val context: Context) {
         userId: String,
         onResult: (Boolean) -> Unit
     ) {
+        Log.d(TAG, "🔍 Checking if user exists in Firestore: $userId")
         db.collection("users").document(userId)
             .get()
             .addOnSuccessListener { document ->
-                onResult(document.exists())
+                val exists = document.exists()
+                Log.d(TAG, "   User exists: $exists")
+                onResult(exists)
             }
-            .addOnFailureListener {
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Firestore check failed: ${e.message}")
                 onResult(false)
             }
     }
@@ -122,10 +178,14 @@ class GoogleSignInHelper(private val context: Context) {
      * ✅ Sign Out
      */
     fun signOut() {
+        Log.d(TAG, "🚪 Signing out...")
         googleSignInClient.signOut()
             .addOnCompleteListener {
                 auth.signOut()
-                Log.d(TAG, "🚪 Signed out")
+                Log.d(TAG, "🚪 Signed out successfully")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Sign out failed: ${e.message}")
             }
     }
 
@@ -133,10 +193,14 @@ class GoogleSignInHelper(private val context: Context) {
      * ✅ Revoke Access
      */
     fun revokeAccess() {
+        Log.d(TAG, "🔐 Revoking access...")
         googleSignInClient.revokeAccess()
             .addOnCompleteListener {
                 auth.signOut()
                 Log.d(TAG, "🔐 Access revoked")
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "❌ Revoke access failed: ${e.message}")
             }
     }
 }
